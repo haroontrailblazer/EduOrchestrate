@@ -1,0 +1,5 @@
+python3 -m pip install ibm-watsonx-orchestrate
+orchestrate --version
+orchestrate env add -n <environment-name> -u <service-instance-url>
+orchestrate env activate <environment-name>
+orchestrate agents import -f hello-world-agent.yaml

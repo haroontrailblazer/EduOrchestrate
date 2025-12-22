@@ -1,0 +1,14 @@
+<svg version="1.2" baseProfile="tiny-ps" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" width="14" height="14">
+	<title>getFile-svg</title>
+	<defs>
+		<image  width="14px" height="14px" id="img1" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOAgMAAABiJsVCAAAAAXNSR0IB2cksfwAAAAxQTFRFAAAAAAAAAAAAAAAANek3lgAAAAR0Uk5TKtQA/9ueW6EAAAA5SURBVHicYxBatcKBoWTVwgsMslrtDgztXrIKDAsvlCxgWFF6aQHDKnkvKAHmgiXASsCKwdpABgAAk40aLe7AL1IAAAAASUVORK5CYII="/>
+	</defs>
+	<style>
+		tspan { white-space:pre }
+	</style>
+	<g id="v2">
+		<g id="[Web-Overlay][ReturningUser][NonTMS]-Step-1:-Privacy-Prefences">
+			<use id="close---material" href="#img1" x="0" y="0" />
+		</g>
+	</g>
+</svg>
