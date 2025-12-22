@@ -6,4 +6,4 @@ instructions: "You are a test agent created for a tutorial on how to get started
 llm: watsonx/meta-llama/llama-3-2-90b-vision-instruct 
 style: default 
 collaborators: [] 
-tools: []
+tools: [] 
