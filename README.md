@@ -1,6 +1,7 @@
 <div align=center>
 
-# The multi-agentAI EduOrchestrate project is currently ongoing and is planned for release before March 2026.
-![WhatsApp Image 2025-12-22 at 3 12 21 PM](https://github.com/user-attachments/assets/5c7bb4f9-955b-44dd-9857-3d1e8191181f)
+## The multi-agentAI EduOrchestrate project is currently ongoing and is planned for release before March 2026.
+![Image 2026-01-16 at 12 55 32 PM](https://github.com/user-attachments/assets/75c88ec1-dd8a-43c3-a9d3-78894ad1d6f5)
+
 
 </div>
