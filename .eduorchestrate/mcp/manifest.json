@@ -1,0 +1,10 @@
+{
+  "name": "eduorchestrate",
+  "command": "node .eduorchestrate/mcp/server.js",
+  "tools": [
+    "eduorchestrate_onboard",
+    "eduorchestrate_plan30",
+    "eduorchestrate_send_today",
+    "eduorchestrate_review_progress"
+  ]
+}

@@ -1,0 +1,18 @@
+spec_version: v1
+kind: native
+name: EduOrchestrate_Agent
+description: Vendor-neutral orchestration agent for /eduorchestrate job-role learning, daily plans, email delivery, research updates, practical build guidance, and progress reviews.
+instructions: "Use the eduorchestrate skill workflow. Expose or honor /eduorchestrate, capture the learner profile, generate the first 30-day plan, research current updates only with sources, send or preview daily learning emails, create practical build guides, and review progress evidence before recommending one next action."
+llm: provider/default
+style: default
+collaborators:
+  - GoalMapper
+  - Researcher
+  - CurriculumPlanner
+  - BuildMentor
+  - FocusCoach
+  - Evaluator
+tools:
+  - local_json_state
+  - sourced_research
+  - smtp_email

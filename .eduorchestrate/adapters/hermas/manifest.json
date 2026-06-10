@@ -1,0 +1,12 @@
+{
+  "name": "eduorchestrate",
+  "command": "/eduorchestrate",
+  "agent": "hermas",
+  "description": "Universal learner orchestration command for onboarding, 30-day plans, daily emails, research references, and progress review.",
+  "fallbackCommands": [
+    "eduorchestrate",
+    "use EduOrchestrate",
+    "npx eduorchestrate"
+  ],
+  "entrypoint": "npx eduorchestrate"
+}
