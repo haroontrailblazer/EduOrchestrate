@@ -12,6 +12,7 @@ Run local commands when needed:
 ```bash
 npx eduorchestrate
 npx eduorchestrate harness
+npx eduorchestrate courses
 npx eduorchestrate status
 npx eduorchestrate research --day 1
 npx eduorchestrate send-today --dry-run

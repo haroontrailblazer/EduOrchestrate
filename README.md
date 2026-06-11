@@ -48,6 +48,7 @@ Where a runtime does not support native slash command registration, it should tr
 npx eduorchestrate plan --role "Agentic AI and LLM Engineer"
 npx eduorchestrate plan --role "Agentic AI and LLM Engineer" --skill "RAG evaluation" --days 45
 npx eduorchestrate harness
+npx eduorchestrate courses
 npx eduorchestrate status
 npx eduorchestrate research --day 1
 npx eduorchestrate send-today --dry-run
@@ -61,7 +62,7 @@ npx eduorchestrate recommend-next
 
 For an Agentic AI / LLM role, day 1 starts with Hugging Face, GitHub, and Google Colab setup, then points the learner toward docs, YouTube search links, and GitHub sample-code search links.
 
-Every day includes a trend scan entry point so agents can adapt the plan when current tools, models, frameworks, or best practices change. `harness` writes `data/eduorchestrate-harness.json` and `.md`, telling agents what to load first, when to research, how to preview/send mail, and what not to paste into chat. Agents never create or type the card UI. The skill ships `skills/eduorchestrate/assets/default-terminal-card.svg`; initialization copies it to `data/default-terminal-card.svg`. `progress-card` and `terminal-card` run the prebuilt CLI program to write learner-specific `data/progression-card.md`, `data/progression-card.json`, and `data/terminal-card.svg`. After the plan window is complete, `recommend-next` suggests the next skill to learn based on the current role and first-skill focus.
+Every day includes a trend scan entry point so agents can adapt the plan when current tools, models, frameworks, or best practices change. `harness` writes `data/eduorchestrate-harness.json` and `.md`, telling agents what to load first, when to research, how to preview/send mail, and what not to paste into chat. `courses` writes `data/learning-sources.json` and `.md` with role-specific official course catalogs, free-course discovery links from MNC/vendor sources, and newsletters/update feeds. Agents never create or type the card UI. The skill ships `skills/eduorchestrate/assets/default-terminal-card.svg`; initialization copies it to `data/default-terminal-card.svg`. `progress-card` and `terminal-card` run the prebuilt CLI program to write learner-specific `data/progression-card.md`, `data/progression-card.json`, and `data/terminal-card.svg`. After the plan window is complete, `recommend-next` suggests the next skill to learn based on the current role and first-skill focus.
 
 State is written to `data/` by default and is ignored by git. SMTP secrets are written to `.env.local` or GitHub Actions secrets, never to committed config.
 
@@ -78,6 +79,7 @@ npx eduorchestrate doctor
 
 - `src/`: dependency-free Node CLI, planner, adapter generator, workflow generator, and SMTP mailer.
 - `src/harness.js`: compact execution harness for token-conscious agent runs.
+- `src/courses.js`: role-specific official course, free-learning, and newsletter source packs.
 - `src/research.js`: source digest generation for official docs, YouTube search, and GitHub sample-code search.
 - `src/progress.js`: progress log, status, and weekly summary logic.
 - `src/card-components.js`: compact React-style SVG component renderer for terminal cards.

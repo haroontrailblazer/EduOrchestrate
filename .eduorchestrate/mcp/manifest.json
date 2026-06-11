@@ -4,6 +4,7 @@
   "tools": [
     "eduorchestrate_onboard",
     "eduorchestrate_harness",
+    "eduorchestrate_courses",
     "eduorchestrate_plan30",
     "eduorchestrate_research",
     "eduorchestrate_send_today",

@@ -12,6 +12,7 @@
   "capabilities": [
     "onboarding",
     "token-conscious-harness",
+    "role-course-sources",
     "adaptive-plan-minimum-30-days",
     "first-skill-focus",
     "trend-research-digest",

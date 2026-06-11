@@ -35,6 +35,7 @@ npx eduorchestrate /eduorchestrate
 npx eduorchestrate plan --role "Agentic AI and LLM Engineer"
 npx eduorchestrate plan --role "Agentic AI and LLM Engineer" --skill "RAG evaluation" --days 45
 npx eduorchestrate harness
+npx eduorchestrate courses
 npx eduorchestrate status
 npx eduorchestrate research --day 1
 npx eduorchestrate send-today --dry-run
@@ -52,6 +53,8 @@ The CLI stores local state in `data/` by default:
 - `30-day-plan.json`
 - `eduorchestrate-harness.json`
 - `eduorchestrate-harness.md`
+- `learning-sources.json`
+- `learning-sources.md`
 - `research-digests/*.json`
 - `progress-log.json`
 - `default-terminal-card.svg`

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { writeAgentAdapters } from "./adapters.js";
 import { appendGitignore, loadConfig, loadEnvFile, readJson, resolveDataDir, saveConfig, writeJson, writeLocalEnv } from "./config.js";
+import { createCoursePack, saveCoursePack } from "./courses.js";
 import { sendMail, smtpConfigFromEnv } from "./email.js";
 import { createHarness, saveHarness } from "./harness.js";
 import { generate30DayPlan, renderDailyEmail } from "./planner.js";
@@ -18,6 +19,7 @@ export async function main(argv = []) {
   if (command === "status") return showStatus();
   if (command === "research") return research(argv.slice(1));
   if (command === "harness") return harness(argv.slice(1));
+  if (command === "courses") return courses();
   if (command === "log-progress") return logProgress(argv.slice(1));
   if (command === "weekly-summary") return weeklySummary(argv.slice(1));
   if (command === "recommend-next") return recommendNext();
@@ -67,6 +69,7 @@ async function init(argv) {
   const defaultTerminalCard = copyDefaultTerminalCard(config);
   const cardPaths = saveProgressionCard(config, buildProgressionCard(config, plan));
   const harnessPaths = saveHarness(config, createHarness(config, plan, "init"));
+  const coursePaths = saveCoursePack(config, createCoursePack(config, plan));
   const digest = createResearchDigest({ config, topic: plan.days[0].title, day: 1, roleKey: plan.roleKey });
   const digestPath = saveResearchDigest(config, digest);
   appendResearchIndex(config, digestPath, digest);
@@ -79,6 +82,7 @@ async function init(argv) {
     defaultTerminalCard,
     progressionCard: cardPaths.markdownPath,
     harness: harnessPaths.jsonPath,
+    learningSources: coursePaths.jsonPath,
     workflow: path.relative(process.cwd(), workflowPath),
     firstResearchDigest: digestPath,
     next: "Run npx eduorchestrate send-today --dry-run to preview the first email."
@@ -112,6 +116,8 @@ async function sendToday(argv) {
   const progressReview = reviewProgress(config, plan);
   const progressionCard = buildProgressionCard(config, plan);
   saveProgressionCard(config, progressionCard);
+  const coursePack = createCoursePack(config, plan);
+  saveCoursePack(config, coursePack);
   const digest = createResearchDigest({
     config,
     topic: plan.days.find((entry) => entry.day === day)?.title || config.learner.targetRole,
@@ -122,7 +128,7 @@ async function sendToday(argv) {
   appendResearchIndex(config, digestPath, digest);
   const env = { ...process.env, ...loadEnvFile(path.join(process.cwd(), ".env.local")) };
   const smtp = smtpConfigFromEnv(env);
-  const message = renderDailyEmail(config, plan, day, { progressReview, researchDigest: digest, progressionCard });
+  const message = renderDailyEmail(config, plan, day, { progressReview, researchDigest: digest, progressionCard, coursePack });
   const result = await sendMail({ smtp, message, dryRun });
   writeJson(path.join(dataDir, "latest-email.json"), { generatedAt: new Date().toISOString(), researchDigest: digestPath, ...result });
   console.log(JSON.stringify(result, null, 2));
@@ -152,6 +158,14 @@ function harness(argv) {
   const payload = createHarness(config, plan, mode);
   const paths = saveHarness(config, payload);
   console.log(JSON.stringify({ status: "saved", ...paths, harness: payload }, null, 2));
+}
+
+function courses() {
+  const config = loadConfig();
+  const plan = loadOrCreatePlan(config);
+  const pack = createCoursePack(config, plan);
+  const paths = saveCoursePack(config, pack);
+  console.log(JSON.stringify({ status: "saved", ...paths, learningSources: pack }, null, 2));
 }
 
 function logProgress(argv) {
@@ -268,6 +282,7 @@ Commands:
   npx eduorchestrate plan --days 45 --skill "RAG evaluation"
   npx eduorchestrate status
   npx eduorchestrate harness
+  npx eduorchestrate courses
   npx eduorchestrate research --day 1
   npx eduorchestrate send-today --dry-run
   npx eduorchestrate log-progress --day 1 --completed "Built setup" --evidence "Repo link"

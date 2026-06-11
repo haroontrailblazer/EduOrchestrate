@@ -56,6 +56,8 @@ test("one-command setup writes universal agent adapters and plan", async () => {
       "data/30-day-plan.json",
       "data/eduorchestrate-harness.json",
       "data/eduorchestrate-harness.md",
+      "data/learning-sources.json",
+      "data/learning-sources.md",
       "data/research-index.json",
       "data/default-terminal-card.svg",
       "data/progression-card.md",
@@ -73,6 +75,10 @@ test("one-command setup writes universal agent adapters and plan", async () => {
     assert.equal(harness.tokenPolicy.neverPaste.includes("SVG contents"), true);
     assert.equal(harness.emailPolicy.previewCommand, "npx eduorchestrate send-today --dry-run");
     assert.equal(harness.researchPolicy.maxInlineSources, 5);
+    const learningSources = JSON.parse(fs.readFileSync(path.join(dir, "data/learning-sources.json"), "utf8"));
+    assert.equal(learningSources.roleKey, "agentic-ai");
+    assert.match(JSON.stringify(learningSources), /Anthropic Claude Code docs|IBM SkillsBuild/);
+    assert.match(JSON.stringify(learningSources.newsletters), /Anthropic News|Hugging Face Blog/);
     assert.match(plan.days[0].setupOrBuildTask, /Hugging Face|Colab|GitHub/i);
     assert.equal(plan.roleKey, "agentic-ai");
     assert.equal(plan.primarySkill, "RAG evaluation");
@@ -177,6 +183,7 @@ test("expanded CLI commands create research, progress, status, and weekly summar
     ]);
     await main(["research", "--day", "1"]);
     await main(["harness", "--mode", "research"]);
+    await main(["courses"]);
     await main(["log-progress", "--day", "1", "--completed", "Built lab notes repo", "--evidence", "GitHub commit", "--confidence", "4"]);
     await main(["status"]);
     await main(["weekly-summary", "--week", "1"]);
@@ -191,6 +198,7 @@ test("expanded CLI commands create research, progress, status, and weekly summar
     assert.equal(fs.existsSync(path.join(dir, "data/weekly-summary-1.json")), true);
     assert.equal(fs.existsSync(path.join(dir, "data/next-skill-recommendation.json")), true);
     assert.equal(fs.existsSync(path.join(dir, "data/eduorchestrate-harness.md")), true);
+    assert.equal(fs.existsSync(path.join(dir, "data/learning-sources.md")), true);
     assert.equal(fs.existsSync(path.join(dir, "data/progression-card.md")), true);
     assert.equal(fs.existsSync(path.join(dir, "data/terminal-card.svg")), true);
     const plan = JSON.parse(fs.readFileSync(path.join(dir, "data/30-day-plan.json"), "utf8"));
@@ -207,6 +215,10 @@ test("expanded CLI commands create research, progress, status, and weekly summar
     const harness = JSON.parse(fs.readFileSync(path.join(dir, "data/eduorchestrate-harness.json"), "utf8"));
     assert.equal(harness.mode, "research");
     assert.match(harness.cardPolicy.rule, /Never create/);
+    const learningSources = JSON.parse(fs.readFileSync(path.join(dir, "data/learning-sources.json"), "utf8"));
+    assert.equal(learningSources.roleKey, "cybersecurity");
+    assert.match(JSON.stringify(learningSources.recommendedSources), /Cisco Networking Academy|IBM SkillsBuild/);
+    assert.match(JSON.stringify(learningSources.newsletters), /CISA Cybersecurity Advisories/);
   });
 });
 

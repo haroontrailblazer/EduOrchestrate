@@ -7,6 +7,7 @@ Use this file for agents without a documented custom slash-command format. The e
 ```bash
 npx eduorchestrate
 npx eduorchestrate harness
+npx eduorchestrate courses
 npx eduorchestrate status
 npx eduorchestrate research --day 1
 npx eduorchestrate send-today --dry-run

@@ -22,6 +22,7 @@ The harness keeps the skill token-conscious by:
 - loading `data/eduorchestrate-harness.json` before broader docs
 - loading only the active plan day unless the user asks for a full review
 - calling CLI programs for research, mail, progress, and cards instead of recreating their outputs
+- using `npx eduorchestrate courses` for role-specific official course catalogs and newsletters
 - keeping source digests as artifacts and summarizing only the useful entries
 - previewing email with `send-today --dry-run` before sending unless the user explicitly asks to send
 - never exposing SMTP secrets or pasting SVG/card source into chat
@@ -102,3 +103,16 @@ Use current research for:
 - deciding whether the next skill recommendation should change after the current plan
 
 Do not browse for stable fundamentals unless the learner asks for sources.
+
+## Course Source Policy
+
+Use `npx eduorchestrate courses` to produce `data/learning-sources.json` and `data/learning-sources.md`.
+
+Course recommendations should:
+
+- prefer official company catalogs, docs, academies, and skill programs
+- include free or free-discovery MNC sources when available
+- avoid Coursera and Udemy unless the learner explicitly asks for marketplaces
+- include newsletters or official update feeds for staying current
+- verify current availability before saying a course is open, free, or newly offered
+- keep email recommendations short: two course sources and two update feeds by default

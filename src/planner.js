@@ -253,7 +253,7 @@ function recommendNextSkill(roleKey, primarySkill, blueprint, requestedDays) {
   };
 }
 
-export function renderDailyEmail(config, plan, dayNumber, { progressReview = null, researchDigest = null, progressionCard = null } = {}) {
+export function renderDailyEmail(config, plan, dayNumber, { progressReview = null, researchDigest = null, progressionCard = null, coursePack = null } = {}) {
   const day = plan.days.find((entry) => entry.day === dayNumber) || plan.days[0];
   const references = day.references.map((ref) => `- ${ref.title}: ${ref.url}`).join("\n");
   const timeBox = `Learn ${day.timeBox.learnMinutes}m, build ${day.timeBox.buildMinutes}m, review ${day.timeBox.reviewMinutes}m`;
@@ -265,6 +265,16 @@ export function renderDailyEmail(config, plan, dayNumber, { progressReview = nul
     : [];
   const card = progressionCard
     ? ["", "Skill learning progression card:", progressionCard.markdown]
+    : [];
+  const courses = coursePack
+    ? [
+        "",
+        "Role-specific learning sources:",
+        ...coursePack.recommendedSources.slice(0, 2).map((source) => `- ${source.title}: ${source.url}`),
+        "Newsletters/update feeds:",
+        ...coursePack.newsletters.slice(0, 2).map((source) => `- ${source.title}: ${source.url}`),
+        "Full source pack: data/learning-sources.md"
+      ]
     : [];
   return {
     to: config.learner.email,
@@ -292,6 +302,7 @@ export function renderDailyEmail(config, plan, dayNumber, { progressReview = nul
       "Review questions:",
       ...day.reviewQuestions.map((question) => `- ${question}`),
       ...progress,
+      ...courses,
       ...card,
       "",
       `Bridge: ${day.nextDayBridge}`,

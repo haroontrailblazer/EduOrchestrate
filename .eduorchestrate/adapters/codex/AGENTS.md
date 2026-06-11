@@ -16,7 +16,8 @@ Expose or honor `/eduorchestrate` for this repo. If the host agent cannot regist
 6. Log evidence with `npx eduorchestrate log-progress --day <n> --completed "..." --evidence "..."`.
 7. Do not create or type card UI in the agent. Use the prebuilt default card at `skills/eduorchestrate/assets/default-terminal-card.svg` or the initialized copy at `data/default-terminal-card.svg`.
 8. Load the compact execution harness with `npx eduorchestrate harness` before doing research, mail, progress, or review work.
-9. When learner-specific state is needed, call the prebuilt CLI program with `npx eduorchestrate progress-card` or `npx eduorchestrate terminal-card`; then load `data/progression-card.md` or `data/terminal-card.svg`.
-10. Summarize with `npx eduorchestrate status` and `npx eduorchestrate weekly-summary --week <n>`.
-11. Recommend the next skill after the plan with `npx eduorchestrate recommend-next`.
-12. Keep the learner focused on one daily build artifact.
+9. Use `npx eduorchestrate courses` for role-specific official/MNC course catalogs, free-course discovery links, and newsletters; do not default to Coursera or Udemy.
+10. When learner-specific state is needed, call the prebuilt CLI program with `npx eduorchestrate progress-card` or `npx eduorchestrate terminal-card`; then load `data/progression-card.md` or `data/terminal-card.svg`.
+11. Summarize with `npx eduorchestrate status` and `npx eduorchestrate weekly-summary --week <n>`.
+12. Recommend the next skill after the plan with `npx eduorchestrate recommend-next`.
+13. Keep the learner focused on one daily build artifact.

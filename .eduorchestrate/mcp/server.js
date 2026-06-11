@@ -5,6 +5,7 @@ import readline from "node:readline";
 const tools = [
   { name: "eduorchestrate_onboard", description: "Run EduOrchestrate onboarding." },
   { name: "eduorchestrate_harness", description: "Create the compact token-conscious execution harness." },
+  { name: "eduorchestrate_courses", description: "Create role-specific official course, free learning, and newsletter source pack." },
   { name: "eduorchestrate_plan30", description: "Generate a 30-day-minimum EduOrchestrate plan." },
   { name: "eduorchestrate_research", description: "Create a sourced trend research digest for a day or topic." },
   { name: "eduorchestrate_send_today", description: "Send or dry-run today's learning email." },
@@ -30,6 +31,7 @@ rl.on("line", (line) => {
     const dryRun = args.dryRun !== false;
     if (name === "eduorchestrate_onboard") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["--yes"]), null, 2) }] });
     if (name === "eduorchestrate_harness") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["harness", "--mode", args.mode || "daily"]), null, 2) }] });
+    if (name === "eduorchestrate_courses") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["courses"]), null, 2) }] });
     if (name === "eduorchestrate_plan30") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["plan", "--days", String(Math.max(30, Number(args.days || 30)))]), null, 2) }] });
     if (name === "eduorchestrate_research") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["research", "--day", String(args.day || 1), ...(args.topic ? ["--topic", args.topic] : [])]), null, 2) }] });
     if (name === "eduorchestrate_send_today") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["send-today", ...(dryRun ? ["--dry-run"] : [])]), null, 2) }] });

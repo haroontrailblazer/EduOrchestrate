@@ -29,9 +29,11 @@ export function createHarness(config, plan, mode = "daily") {
     },
     researchPolicy: {
       command: "npx eduorchestrate research --day <n>",
+      courseCommand: "npx eduorchestrate courses",
       keepEffectiveness: [
         "Use official docs and reputable sources first.",
         "Use YouTube and GitHub as search entry points, not unverified recommendations.",
+        "Use courses for official/MNC course catalogs and newsletters; do not default to Coursera or Udemy.",
         "Research only current or role-changing topics deeply; keep fundamentals concise.",
         "Persist the digest and cite artifact paths instead of pasting long source lists."
       ],
@@ -60,6 +62,7 @@ export function createHarness(config, plan, mode = "daily") {
       harness: "data/eduorchestrate-harness.json",
       harnessMarkdown: "data/eduorchestrate-harness.md",
       researchIndex: "data/research-index.json",
+      learningSources: "data/learning-sources.json",
       progressLog: "data/progress-log.json",
       latestEmail: "data/latest-email.json",
       progressionCard: "data/progression-card.md",
@@ -98,6 +101,7 @@ function renderHarnessMarkdown(harness) {
     "",
     "## Commands",
     `- Research: ${harness.researchPolicy.command}`,
+    `- Courses: ${harness.researchPolicy.courseCommand}`,
     `- Email preview: ${harness.emailPolicy.previewCommand}`,
     `- Email send: ${harness.emailPolicy.sendCommand}`,
     `- Progress: ${harness.progressPolicy.logCommand}`,
