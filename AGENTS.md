@@ -1,24 +1,22 @@
 # EduOrchestrate Agent Instructions
 
-Expose or honor `/eduorchestrate` for this repo.
+Use /eduorchestrate as the learner command. When invoked, load the EduOrchestrate workflow and its prebuilt terminal-card program; never recreate, type out, or hand-design the card UI in the agent prompt. Ask for missing learner profile details, ask what the learner is currently studying, ask the first skill they want to focus on, generate or update an adaptive plan with a fixed 30-day minimum, research current and trending references, send or preview daily emails, log progress, load the bundled default card or CLI-produced card artifact, summarize the week, recommend the next skill after the plan window, and keep recommendations practical, sourced, and focused. If native slash commands are unavailable, treat "eduorchestrate" or "use EduOrchestrate" as equivalent to /eduorchestrate.
 
-If the host agent cannot register custom slash commands, treat `/eduorchestrate`, `eduorchestrate`, or `use EduOrchestrate` as the same workflow.
+## Command
+
+Expose or honor `/eduorchestrate` for this repo. If the host agent cannot register slash commands, respond to `/eduorchestrate`, `eduorchestrate`, or `use EduOrchestrate` as the same workflow.
 
 ## Workflow
 
 1. Load `eduorchestrate.config.json` when present.
-2. Ask for missing learner name, email, target role, current stage, daily email time, and timezone.
-3. Generate or update `data/30-day-plan.json`.
-4. Use sourced research links for docs, YouTube videos, and sample code.
+2. Ask for missing name, email, target role, current learning topic, first skill focus, current stage, desired plan days, daily email time, and timezone.
+3. Generate or update `data/30-day-plan.json`; never generate fewer than 30 days.
+4. Use `npx eduorchestrate research --day <n>` for sourced docs, trend scans, YouTube search, and GitHub sample-code search links.
 5. Send or preview daily email with `npx eduorchestrate send-today --dry-run` or `npx eduorchestrate send-today`.
-6. Keep the learner focused on one daily build artifact.
-
-## Command
-
-Use:
-
-```bash
-npx eduorchestrate
-npx eduorchestrate /eduorchestrate
-npx eduorchestrate send-today --dry-run
-```
+6. Log evidence with `npx eduorchestrate log-progress --day <n> --completed "..." --evidence "..."`.
+7. Do not create or type card UI in the agent. Use the prebuilt default card at `skills/eduorchestrate/assets/default-terminal-card.svg` or the initialized copy at `data/default-terminal-card.svg`.
+8. Load the compact execution harness with `npx eduorchestrate harness` before doing research, mail, progress, or review work.
+9. When learner-specific state is needed, call the prebuilt CLI program with `npx eduorchestrate progress-card` or `npx eduorchestrate terminal-card`; then load `data/progression-card.md` or `data/terminal-card.svg`.
+10. Summarize with `npx eduorchestrate status` and `npx eduorchestrate weekly-summary --week <n>`.
+11. Recommend the next skill after the plan with `npx eduorchestrate recommend-next`.
+12. Keep the learner focused on one daily build artifact.

@@ -3,8 +3,15 @@
   "command": "node .eduorchestrate/mcp/server.js",
   "tools": [
     "eduorchestrate_onboard",
+    "eduorchestrate_harness",
     "eduorchestrate_plan30",
+    "eduorchestrate_research",
     "eduorchestrate_send_today",
-    "eduorchestrate_review_progress"
+    "eduorchestrate_log_progress",
+    "eduorchestrate_progress_card",
+    "eduorchestrate_terminal_card",
+    "eduorchestrate_weekly_summary",
+    "eduorchestrate_recommend_next",
+    "eduorchestrate_status"
   ]
 }

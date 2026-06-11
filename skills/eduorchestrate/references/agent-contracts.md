@@ -14,6 +14,20 @@ All agents receive a learner profile with:
 
 Agents should also accept current `30-day-plan`, `progressLog`, and recent `researchDigests` when available.
 
+## Harness
+
+Input: learner profile, current plan, and run mode.
+
+Output:
+
+- compact load order
+- token budget rules
+- research command policy
+- email preview/send policy
+- progress/card artifact paths
+
+Decision rule: load the harness before detailed references, call CLI programs for stateful work, and summarize artifact paths instead of pasting large files or card source.
+
 ## GoalMapper
 
 Input: learner profile.

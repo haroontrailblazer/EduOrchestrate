@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ensureDir } from "./config.js";
 
-const UNIVERSAL_PROMPT = `Use /eduorchestrate as the learner command. When invoked, load the EduOrchestrate workflow, ask for missing learner profile details, generate or update the 30-day plan, and keep recommendations practical, sourced, and focused. If native slash commands are unavailable, treat "eduorchestrate" or "use EduOrchestrate" as equivalent to /eduorchestrate.`;
+const UNIVERSAL_PROMPT = `Use /eduorchestrate as the learner command. When invoked, load the EduOrchestrate workflow and its prebuilt terminal-card program; never recreate, type out, or hand-design the card UI in the agent prompt. Ask for missing learner profile details, ask what the learner is currently studying, ask the first skill they want to focus on, generate or update an adaptive plan with a fixed 30-day minimum, research current and trending references, send or preview daily emails, log progress, load the bundled default card or CLI-produced card artifact, summarize the week, recommend the next skill after the plan window, and keep recommendations practical, sourced, and focused. If native slash commands are unavailable, treat "eduorchestrate" or "use EduOrchestrate" as equivalent to /eduorchestrate.`;
 
 export function writeAgentAdapters(rootDir = process.cwd()) {
   const outputs = [];
@@ -26,12 +26,25 @@ function writeFile(rootDir, relativePath, content) {
   return relativePath;
 }
 
+function cliExamples() {
+  return `npx eduorchestrate
+npx eduorchestrate harness
+npx eduorchestrate status
+npx eduorchestrate research --day 1
+npx eduorchestrate send-today --dry-run
+npx eduorchestrate log-progress --day 1 --completed "Built setup" --evidence "Repo link"
+npx eduorchestrate weekly-summary --week 1
+npx eduorchestrate progress-card
+npx eduorchestrate terminal-card
+npx eduorchestrate recommend-next`;
+}
+
 function claudeSkill() {
-  return `---\nname: eduorchestrate\ndescription: Use /eduorchestrate to onboard a learner, create a 30-day job-role plan, research references, send daily plan emails, and review progress.\n---\n\n# EduOrchestrate\n\n${UNIVERSAL_PROMPT}\n\nRun local commands when needed:\n\n\`\`\`bash\nnpx eduorchestrate\nnpx eduorchestrate send-today --dry-run\n\`\`\`\n`;
+  return `---\nname: eduorchestrate\ndescription: Use /eduorchestrate to onboard a learner, create an adaptive job-role plan with a 30-day minimum, research trends, send daily plan emails, log progress, load the prebuilt skill progression card, summarize weeks, recommend the next skill, and review progress.\n---\n\n# EduOrchestrate\n\n${UNIVERSAL_PROMPT}\n\nRun local commands when needed:\n\n\`\`\`bash\n${cliExamples()}\n\`\`\`\n`;
 }
 
 function agentsMd() {
-  return `# EduOrchestrate Agent Instructions\n\n${UNIVERSAL_PROMPT}\n\n## Command\n\nExpose or honor \`/eduorchestrate\` for this repo. If the host agent cannot register slash commands, respond to \`/eduorchestrate\`, \`eduorchestrate\`, or \`use EduOrchestrate\` as the same workflow.\n\n## Workflow\n\n1. Load \`eduorchestrate.config.json\` when present.\n2. Ask for missing name, email, target role, current stage, daily email time, and timezone.\n3. Generate or update \`data/30-day-plan.json\`.\n4. Use sourced research links for docs, YouTube videos, and sample code.\n5. Send or preview daily email with \`npx eduorchestrate send-today --dry-run\` or \`npx eduorchestrate send-today\`.\n6. Keep the learner focused on one daily build artifact.\n`;
+  return `# EduOrchestrate Agent Instructions\n\n${UNIVERSAL_PROMPT}\n\n## Command\n\nExpose or honor \`/eduorchestrate\` for this repo. If the host agent cannot register slash commands, respond to \`/eduorchestrate\`, \`eduorchestrate\`, or \`use EduOrchestrate\` as the same workflow.\n\n## Workflow\n\n1. Load \`eduorchestrate.config.json\` when present.\n2. Ask for missing name, email, target role, current learning topic, first skill focus, current stage, desired plan days, daily email time, and timezone.\n3. Generate or update \`data/30-day-plan.json\`; never generate fewer than 30 days.\n4. Use \`npx eduorchestrate research --day <n>\` for sourced docs, trend scans, YouTube search, and GitHub sample-code search links.\n5. Send or preview daily email with \`npx eduorchestrate send-today --dry-run\` or \`npx eduorchestrate send-today\`.\n6. Log evidence with \`npx eduorchestrate log-progress --day <n> --completed "..." --evidence "..."\`.\n7. Do not create or type card UI in the agent. Use the prebuilt default card at \`skills/eduorchestrate/assets/default-terminal-card.svg\` or the initialized copy at \`data/default-terminal-card.svg\`.\n8. Load the compact execution harness with \`npx eduorchestrate harness\` before doing research, mail, progress, or review work.\n9. When learner-specific state is needed, call the prebuilt CLI program with \`npx eduorchestrate progress-card\` or \`npx eduorchestrate terminal-card\`; then load \`data/progression-card.md\` or \`data/terminal-card.svg\`.\n10. Summarize with \`npx eduorchestrate status\` and \`npx eduorchestrate weekly-summary --week <n>\`.\n11. Recommend the next skill after the plan with \`npx eduorchestrate recommend-next\`.\n12. Keep the learner focused on one daily build artifact.\n`;
 }
 
 function geminiMd() {
@@ -39,7 +52,7 @@ function geminiMd() {
 }
 
 function genericSkill(agentName) {
-  return `---\nname: eduorchestrate\ndescription: Universal EduOrchestrate adapter for ${agentName}. Use /eduorchestrate for learner onboarding, 30-day plans, sourced learning research, daily email plans, and progress review.\n---\n\n# EduOrchestrate Adapter\n\n${UNIVERSAL_PROMPT}\n\nPrefer \`npx eduorchestrate\` for setup and \`npx eduorchestrate send-today --dry-run\` for previews.\n`;
+  return `---\nname: eduorchestrate\ndescription: Universal EduOrchestrate adapter for ${agentName}. Use /eduorchestrate for learner onboarding, adaptive plans with a 30-day minimum, trend research, daily email plans, progress logging, prebuilt skill progression cards, weekly summaries, and next-skill recommendations.\n---\n\n# EduOrchestrate Adapter\n\n${UNIVERSAL_PROMPT}\n\nPrefer:\n\n\`\`\`bash\n${cliExamples()}\n\`\`\`\n`;
 }
 
 function adapterManifest(agentName) {
@@ -47,25 +60,26 @@ function adapterManifest(agentName) {
     name: "eduorchestrate",
     command: "/eduorchestrate",
     agent: agentName,
-    description: "Universal learner orchestration command for onboarding, 30-day plans, daily emails, research references, and progress review.",
+    description: "Universal learner orchestration command for onboarding, adaptive plans with a 30-day minimum, trend research, daily emails, progress logging, prebuilt GitHub-style progression cards, weekly summaries, next-skill recommendations, setup diagnostics, and review.",
     fallbackCommands: ["eduorchestrate", "use EduOrchestrate", "npx eduorchestrate"],
     entrypoint: "npx eduorchestrate",
+    capabilities: ["onboarding", "token-conscious-harness", "adaptive-plan-minimum-30-days", "first-skill-focus", "trend-research-digest", "daily-email", "progress-log", "progression-card", "terminal-card-svg", "weekly-summary", "next-skill-recommendation", "setup-diagnostics"],
     instructions: UNIVERSAL_PROMPT
   }, null, 2)}\n`;
 }
 
 function genericInstructions() {
-  return `# Universal EduOrchestrate Adapter\n\n${UNIVERSAL_PROMPT}\n\nUse this file for agents without a documented custom slash-command format. The expected visible command is \`/eduorchestrate\`.\n`;
+  return `# Universal EduOrchestrate Adapter\n\n${UNIVERSAL_PROMPT}\n\nUse this file for agents without a documented custom slash-command format. The expected visible command is \`/eduorchestrate\`.\n\n\`\`\`bash\n${cliExamples()}\n\`\`\`\n`;
 }
 
 function mcpManifest() {
   return `${JSON.stringify({
     name: "eduorchestrate",
     command: "node .eduorchestrate/mcp/server.js",
-    tools: ["eduorchestrate_onboard", "eduorchestrate_plan30", "eduorchestrate_send_today", "eduorchestrate_review_progress"]
+    tools: ["eduorchestrate_onboard", "eduorchestrate_harness", "eduorchestrate_plan30", "eduorchestrate_research", "eduorchestrate_send_today", "eduorchestrate_log_progress", "eduorchestrate_progress_card", "eduorchestrate_terminal_card", "eduorchestrate_weekly_summary", "eduorchestrate_recommend_next", "eduorchestrate_status"]
   }, null, 2)}\n`;
 }
 
 function mcpServer() {
-  return `#!/usr/bin/env node\nimport { spawnSync } from "node:child_process";\nimport readline from "node:readline";\n\nconst tools = [\n  { name: "eduorchestrate_onboard", description: "Run EduOrchestrate onboarding." },\n  { name: "eduorchestrate_plan30", description: "Generate a 30-day EduOrchestrate plan." },\n  { name: "eduorchestrate_send_today", description: "Send or dry-run today's learning email." },\n  { name: "eduorchestrate_review_progress", description: "Review learner progress through the CLI fallback." }\n];\n\nfunction respond(id, result) { process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\\n"); }\nfunction run(args) { const out = spawnSync("npx", ["eduorchestrate", ...args], { encoding: "utf8" }); return { stdout: out.stdout, stderr: out.stderr, status: out.status }; }\n\nconst rl = readline.createInterface({ input: process.stdin });\nrl.on("line", (line) => {\n  const msg = JSON.parse(line);\n  if (msg.method === "initialize") return respond(msg.id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "eduorchestrate", version: "0.1.0" } });\n  if (msg.method === "tools/list") return respond(msg.id, { tools });\n  if (msg.method === "tools/call") {\n    const name = msg.params?.name;\n    const dryRun = msg.params?.arguments?.dryRun !== false;\n    if (name === "eduorchestrate_onboard") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["--yes"]), null, 2) }] });\n    if (name === "eduorchestrate_plan30") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["plan", "--days", "30"]), null, 2) }] });\n    if (name === "eduorchestrate_send_today") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["send-today", ...(dryRun ? ["--dry-run"] : [])]), null, 2) }] });\n    return respond(msg.id, { content: [{ type: "text", text: "Use npx eduorchestrate review-progress in the terminal with progress details." }] });\n  }\n});\n`;
+  return `#!/usr/bin/env node\nimport { spawnSync } from "node:child_process";\nimport readline from "node:readline";\n\nconst tools = [\n  { name: "eduorchestrate_onboard", description: "Run EduOrchestrate onboarding." },\n  { name: "eduorchestrate_harness", description: "Create the compact token-conscious execution harness." },\n  { name: "eduorchestrate_plan30", description: "Generate a 30-day-minimum EduOrchestrate plan." },\n  { name: "eduorchestrate_research", description: "Create a sourced trend research digest for a day or topic." },\n  { name: "eduorchestrate_send_today", description: "Send or dry-run today's learning email." },\n  { name: "eduorchestrate_log_progress", description: "Log learner progress evidence." },\n  { name: "eduorchestrate_progress_card", description: "Run the prebuilt program that writes the role, skill, GitHub-style progression, and terminal card artifacts." },\n  { name: "eduorchestrate_terminal_card", description: "Run the prebuilt program that writes the exact SVG terminal-card artifact." },\n  { name: "eduorchestrate_weekly_summary", description: "Summarize a learning week." },\n  { name: "eduorchestrate_recommend_next", description: "Recommend the next skill after the current plan window." },\n  { name: "eduorchestrate_status", description: "Show current plan and momentum status." }\n];\n\nfunction respond(id, result) { process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\\n"); }\nfunction run(args) { const out = spawnSync("npx", ["eduorchestrate", ...args], { encoding: "utf8" }); return { stdout: out.stdout, stderr: out.stderr, status: out.status }; }\n\nconst rl = readline.createInterface({ input: process.stdin });\nrl.on("line", (line) => {\n  const msg = JSON.parse(line);\n  if (msg.method === "initialize") return respond(msg.id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "eduorchestrate", version: "0.3.0" } });\n  if (msg.method === "tools/list") return respond(msg.id, { tools });\n  if (msg.method === "tools/call") {\n    const name = msg.params?.name;\n    const args = msg.params?.arguments || {};\n    const dryRun = args.dryRun !== false;\n    if (name === "eduorchestrate_onboard") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["--yes"]), null, 2) }] });\n    if (name === "eduorchestrate_harness") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["harness", "--mode", args.mode || "daily"]), null, 2) }] });\n    if (name === "eduorchestrate_plan30") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["plan", "--days", String(Math.max(30, Number(args.days || 30)))]), null, 2) }] });\n    if (name === "eduorchestrate_research") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["research", "--day", String(args.day || 1), ...(args.topic ? ["--topic", args.topic] : [])]), null, 2) }] });\n    if (name === "eduorchestrate_send_today") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["send-today", ...(dryRun ? ["--dry-run"] : [])]), null, 2) }] });\n    if (name === "eduorchestrate_log_progress") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["log-progress", "--day", String(args.day || 1), "--completed", args.completed || "Completed today's task", "--evidence", args.evidence || "Evidence not provided"]), null, 2) }] });\n    if (name === "eduorchestrate_progress_card") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["progress-card"]), null, 2) }] });\n    if (name === "eduorchestrate_terminal_card") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["terminal-card"]), null, 2) }] });\n    if (name === "eduorchestrate_weekly_summary") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["weekly-summary", "--week", String(args.week || 1)]), null, 2) }] });\n    if (name === "eduorchestrate_recommend_next") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["recommend-next"]), null, 2) }] });\n    if (name === "eduorchestrate_status") return respond(msg.id, { content: [{ type: "text", text: JSON.stringify(run(["status"]), null, 2) }] });\n  }\n});\n`;
 }

@@ -1,6 +1,6 @@
 {
   "name": "eduorchestrate",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Universal agent skill and daily learning orchestrator for job-role learners.",
   "type": "module",
   "bin": {
@@ -12,5 +12,24 @@
   "engines": {
     "node": ">=18"
   },
+  "files": [
+    ".claude/",
+    ".eduorchestrate/",
+    "AGENTS.md",
+    "GEMINI.md",
+    "README.md",
+    "agents/",
+    "bin/",
+    "skills/",
+    "src/",
+    "tests/node/"
+  ],
+  "keywords": [
+    "agents",
+    "education",
+    "learning",
+    "orchestration",
+    "skills"
+  ],
   "license": "MIT"
 }

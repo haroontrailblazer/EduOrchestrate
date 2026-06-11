@@ -18,6 +18,10 @@ export function writeJson(filePath, payload) {
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
+export function fileSafeDate(date = new Date()) {
+  return date.toISOString().replace(/[:.]/g, "").replace("Z", "Z");
+}
+
 export function loadConfig(rootDir = process.cwd()) {
   const configPath = path.join(rootDir, CONFIG_FILE);
   const config = readJson(configPath);

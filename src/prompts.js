@@ -6,8 +6,11 @@ export async function collectOnboarding({ defaults = {}, nonInteractive = false,
     name: "Learner",
     email: "learner@example.com",
     targetRole: "Agentic AI and LLM Engineer",
+    currentLearning: "not started yet",
+    focusSkill: "RAG and agent workflows",
     currentStage: "beginner",
     weeklyHours: "8",
+    planDays: "30",
     dailyEmailTime: "08:00",
     timezone: "UTC",
     smtpHost: "smtp.gmail.com",
@@ -28,8 +31,11 @@ export async function collectOnboarding({ defaults = {}, nonInteractive = false,
     await ask("name", "Your name");
     await ask("email", "Email for daily plans");
     await ask("targetRole", "Target/searching role");
+    await ask("currentLearning", "What are you learning right now in this role");
+    await ask("focusSkill", "First skill you want to focus on");
     await ask("currentStage", "Current stage");
     await ask("weeklyHours", "Weekly learning hours");
+    await ask("planDays", "Plan length in days, minimum fixed at 30");
     await ask("dailyEmailTime", "Daily email time, 24h HH:MM");
     await ask("timezone", "Timezone");
     await ask("smtpHost", "SMTP host");
@@ -49,8 +55,11 @@ export function normalizeAnswers(values) {
       name: values.name,
       email: values.email,
       targetRole: values.targetRole,
+      currentLearning: values.currentLearning,
+      focusSkill: values.focusSkill,
       currentStage: values.currentStage,
-      weeklyHours: Number.parseInt(values.weeklyHours, 10) || 8
+      weeklyHours: Number.parseInt(values.weeklyHours, 10) || 8,
+      planDays: Math.max(30, Number.parseInt(values.planDays, 10) || 30)
     },
     schedule: {
       dailyEmailTime: values.dailyEmailTime,
