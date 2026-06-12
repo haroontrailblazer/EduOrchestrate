@@ -31,5 +31,14 @@
     "orchestration",
     "skills"
   ],
+  "author": "Haroon K M (https://haroontrailblazer.vercel.app/)",
+  "homepage": "https://eolearn.vercel.app/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haroontrailblazer/EduOrchestrate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haroontrailblazer/EduOrchestrate/issues"
+  },
   "license": "MIT"
 }
