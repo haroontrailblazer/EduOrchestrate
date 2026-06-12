@@ -4,7 +4,7 @@
   "description": "Universal agent skill and daily learning orchestrator for job-role learners.",
   "type": "module",
   "bin": {
-    "eduorchestrate": "./bin/eduorchestrate.js"
+    "eduorchestrate": "bin/eduorchestrate.js"
   },
   "scripts": {
     "test": "node --test tests/node/*.test.js"
