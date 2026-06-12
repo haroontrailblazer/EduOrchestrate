@@ -1,4 +1,4 @@
 interface:
   display_name: "EduOrchestrate"
   short_description: "Slash agent learning coach"
-  default_prompt: "Use $eduorchestrate to start my /eduorchestrate learning plan."
+  default_prompt: "Use $eduorchestrate to start my /eduorchestrate learning plan. On resume in a browser or workspace instance, check status and send today's due mail after SMTP setup, or dry-run if secrets or approval are missing."

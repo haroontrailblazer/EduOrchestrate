@@ -66,6 +66,14 @@ Every day includes a trend scan entry point so agents can adapt the plan when cu
 
 State is written to `data/` by default and is ignored by git. SMTP secrets are written to `.env.local` or GitHub Actions secrets, never to committed config.
 
+## Autonomous Daily Delivery
+
+EduOrchestrate does not need a browser window or an agent session to stay open for scheduled delivery. On setup, it writes `.github/workflows/eduorchestrate-daily.yml`, which can run in GitHub Actions at the configured daily time. The scheduled job runs `node bin/eduorchestrate.js send-today`, uses GitHub Actions secrets for SMTP credentials, and sends the current plan day automatically after the user has completed the one-time workflow and secret setup.
+
+For browser-hosted or resumable workspace agents, every adapter uses the same resume rule: on resume, load the harness or status, resolve today's plan day, and run `npx eduorchestrate send-today` after SMTP setup. If SMTP secrets are missing or real sending has not been approved, run `npx eduorchestrate send-today --dry-run` and ask before sending.
+
+`send-today --dry-run` is only a preview. `send-today` sends real email. For scheduled runs, EduOrchestrate stores `schedule.startDate` in `eduorchestrate.config.json`, advances the day from that date, and skips sending after the plan window is complete instead of repeating the same day forever.
+
 ## Setup Helpers
 
 ```bash

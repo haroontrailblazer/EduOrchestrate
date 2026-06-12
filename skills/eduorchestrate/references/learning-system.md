@@ -25,6 +25,7 @@ The harness keeps the skill token-conscious by:
 - using `npx eduorchestrate courses` for role-specific official course catalogs and newsletters
 - keeping source digests as artifacts and summarizing only the useful entries
 - previewing email with `send-today --dry-run` before sending unless the user explicitly asks to send
+- treating every resumable browser or workspace agent session as a daily-mail checkpoint on resume: load harness/status, resolve today's plan day, and run `send-today` after SMTP setup, or `send-today --dry-run` when secrets or approval are missing
 - never exposing SMTP secrets or pasting SVG/card source into chat
 
 ## 30-Day Plan Policy

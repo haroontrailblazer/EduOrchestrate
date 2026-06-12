@@ -54,6 +54,7 @@ async function init(argv) {
     },
     agents: ["claude", "codex", "gemini", "openclaw", "antigravity", "hermas", "generic"]
   };
+  config.schedule.startDate = localDateString(new Date(), config.schedule.timezone);
   saveConfig(config);
   appendGitignore(["__pycache__/", "*.py[cod]", ".pytest_cache/", "node_modules/", ".env.local", "data/"]);
   writeLocalEnv({
@@ -65,7 +66,7 @@ async function init(argv) {
   });
   const adapterFiles = writeAgentAdapters();
   const plan = generate30DayPlan(config.learner);
-  writeJson(path.join(resolveDataDir(config), "30-day-plan.json"), plan);
+  writeDataJson(config, "30-day-plan.json", plan);
   const defaultTerminalCard = copyDefaultTerminalCard(config);
   const cardPaths = saveProgressionCard(config, buildProgressionCard(config, plan));
   const harnessPaths = saveHarness(config, createHarness(config, plan, "init"));
@@ -74,7 +75,7 @@ async function init(argv) {
   const digestPath = saveResearchDigest(config, digest);
   appendResearchIndex(config, digestPath, digest);
   const workflowPath = writeGithubWorkflow(config);
-  console.log(JSON.stringify({
+  outputJson({
     status: "initialized",
     command: "/eduorchestrate",
     adapters: adapterFiles,
@@ -86,7 +87,7 @@ async function init(argv) {
     workflow: path.relative(process.cwd(), workflowPath),
     firstResearchDigest: digestPath,
     next: "Run npx eduorchestrate send-today --dry-run to preview the first email."
-  }, null, 2));
+  });
 }
 
 function regeneratePlan(argv) {
@@ -100,19 +101,28 @@ function regeneratePlan(argv) {
   const days = Number.parseInt(valueAfter(argv, "--days") || "", 10);
   if (days) config.learner.planDays = Math.max(30, days);
   const plan = generate30DayPlan(config.learner);
-  writeJson(path.join(resolveDataDir(config), "30-day-plan.json"), plan);
+  writeDataJson(config, "30-day-plan.json", plan);
   saveConfig(config);
-  console.log(JSON.stringify({ status: "saved", plan: "data/30-day-plan.json", days: plan.days.length }, null, 2));
+  outputJson({ status: "saved", plan: "data/30-day-plan.json", days: plan.days.length });
 }
 
 async function sendToday(argv) {
   const dryRun = argv.includes("--dry-run");
-  const day = Number.parseInt(valueAfter(argv, "--day") || "1", 10);
-  const config = loadConfig();
-  const dataDir = resolveDataDir(config);
-  const planPath = path.join(dataDir, "30-day-plan.json");
-  const plan = fs.existsSync(planPath) ? JSON.parse(fs.readFileSync(planPath, "utf8")) : generate30DayPlan(config.learner);
-  if (!fs.existsSync(planPath)) writeJson(planPath, plan);
+  const explicitDay = valueAfter(argv, "--day");
+  const { config, plan } = loadRuntime();
+  const day = explicitDay ? parsePositiveDay(explicitDay, plan) : resolveScheduledDay(config, plan);
+  if (!explicitDay && day > plan.days.length) {
+    const result = {
+      skipped: true,
+      reason: "plan-complete",
+      day,
+      planDays: plan.days.length,
+      recommendation: plan.nextSkillRecommendation
+    };
+    writeDataJson(config, "latest-email.json", { generatedAt: new Date().toISOString(), ...result });
+    outputJson(result);
+    return;
+  }
   const progressReview = reviewProgress(config, plan);
   const progressionCard = buildProgressionCard(config, plan);
   saveProgressionCard(config, progressionCard);
@@ -130,47 +140,51 @@ async function sendToday(argv) {
   const smtp = smtpConfigFromEnv(env);
   const message = renderDailyEmail(config, plan, day, { progressReview, researchDigest: digest, progressionCard, coursePack });
   const result = await sendMail({ smtp, message, dryRun });
-  writeJson(path.join(dataDir, "latest-email.json"), { generatedAt: new Date().toISOString(), researchDigest: digestPath, ...result });
-  console.log(JSON.stringify(result, null, 2));
+  writeDataJson(config, "latest-email.json", { generatedAt: new Date().toISOString(), researchDigest: digestPath, ...result });
+  outputJson(result);
+}
+
+export function resolveScheduledDay(config, plan, now = new Date()) {
+  const startDate = config.schedule?.startDate;
+  if (!startDate) return 1;
+  const today = localDateString(now, config.schedule?.timezone);
+  const elapsedDays = daysBetweenDateStrings(startDate, today);
+  const day = elapsedDays + 1;
+  return Number.isFinite(day) ? Math.max(1, day) : 1;
 }
 
 function showStatus() {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
-  console.log(JSON.stringify(planStatus(config, plan), null, 2));
+  const { config, plan } = loadRuntime();
+  outputJson(planStatus(config, plan));
 }
 
 function research(argv) {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const day = Number.parseInt(valueAfter(argv, "--day") || "1", 10);
   const topic = valueAfter(argv, "--topic") || plan.days.find((entry) => entry.day === day)?.title || config.learner.targetRole;
   const digest = createResearchDigest({ config, topic, day, roleKey: plan.roleKey });
   const digestPath = saveResearchDigest(config, digest);
   appendResearchIndex(config, digestPath, digest);
-  console.log(JSON.stringify({ status: "saved", path: digestPath, digest }, null, 2));
+  outputJson({ status: "saved", path: digestPath, digest });
 }
 
 function harness(argv) {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const mode = valueAfter(argv, "--mode") || "daily";
   const payload = createHarness(config, plan, mode);
   const paths = saveHarness(config, payload);
-  console.log(JSON.stringify({ status: "saved", ...paths, harness: payload }, null, 2));
+  outputJson({ status: "saved", ...paths, harness: payload });
 }
 
 function courses() {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const pack = createCoursePack(config, plan);
   const paths = saveCoursePack(config, pack);
-  console.log(JSON.stringify({ status: "saved", ...paths, learningSources: pack }, null, 2));
+  outputJson({ status: "saved", ...paths, learningSources: pack });
 }
 
 function logProgress(argv) {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const entry = appendProgress(config, {
     day: valueAfter(argv, "--day"),
     completed: valueAfter(argv, "--completed"),
@@ -181,22 +195,20 @@ function logProgress(argv) {
   });
   const review = reviewProgress(config, plan);
   const cardPaths = saveProgressionCard(config, buildProgressionCard(config, plan));
-  writeJson(path.join(resolveDataDir(config), "latest-review.json"), review);
-  console.log(JSON.stringify({ status: "logged", entry, review, progressionCard: cardPaths.markdownPath }, null, 2));
+  writeDataJson(config, "latest-review.json", review);
+  outputJson({ status: "logged", entry, review, progressionCard: cardPaths.markdownPath });
 }
 
 function weeklySummary(argv) {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const week = Number.parseInt(valueAfter(argv, "--week") || "1", 10);
   const summary = createWeeklySummary(config, plan, week);
-  writeJson(path.join(resolveDataDir(config), `weekly-summary-${week}.json`), summary);
-  console.log(JSON.stringify(summary, null, 2));
+  writeDataJson(config, `weekly-summary-${week}.json`, summary);
+  outputJson(summary);
 }
 
 function recommendNext() {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const review = reviewProgress(config, plan);
   const currentFocus = config.learner.focusSkill || plan.primarySkill;
   const recommendation = plan.nextSkillRecommendation || {
@@ -213,28 +225,26 @@ function recommendNext() {
     currentFocus,
     ...recommendation
   };
-  writeJson(path.join(resolveDataDir(config), "next-skill-recommendation.json"), payload);
-  console.log(JSON.stringify(payload, null, 2));
+  writeDataJson(config, "next-skill-recommendation.json", payload);
+  outputJson(payload);
 }
 
 function progressCard() {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const card = buildProgressionCard(config, plan);
   const paths = saveProgressionCard(config, card);
-  console.log(JSON.stringify({ status: "saved", ...paths, card }, null, 2));
+  outputJson({ status: "saved", ...paths, card });
 }
 
 function terminalCard() {
-  const config = loadConfig();
-  const plan = loadOrCreatePlan(config);
+  const { config, plan } = loadRuntime();
   const card = buildProgressionCard(config, plan);
   const paths = saveProgressionCard(config, card);
-  console.log(JSON.stringify({
+  outputJson({
     status: "saved",
     terminalSvgPath: paths.terminalSvgPath,
     terminalLines: card.terminalLines
-  }, null, 2));
+  });
 }
 
 function setupSecrets() {
@@ -247,11 +257,11 @@ function setupSecrets() {
     "gh secret set SMTP_PASS",
     secretCommand("SMTP_FROM", env.SMTP_FROM || config.email.to)
   ];
-  console.log(JSON.stringify({
+  outputJson({
     status: "manual-secret-commands",
     note: "Run these after gh auth login. Secrets are not committed.",
     commands
-  }, null, 2));
+  });
 }
 
 function secretCommand(key, value) {
@@ -269,7 +279,7 @@ function doctor() {
     config: fs.existsSync(path.join(process.cwd(), "eduorchestrate.config.json")),
     localEnv: fs.existsSync(path.join(process.cwd(), ".env.local"))
   };
-  console.log(JSON.stringify({ status: Object.values(checks).every(Boolean) ? "ready" : "needs-setup", checks }, null, 2));
+  outputJson({ status: Object.values(checks).every(Boolean) ? "ready" : "needs-setup", checks });
 }
 
 function printHelp() {
@@ -329,11 +339,70 @@ function valueAfter(argv, flag) {
   return index >= 0 ? argv[index + 1] : undefined;
 }
 
+function parsePositiveDay(value, plan) {
+  if (!/^\d+$/.test(String(value || ""))) throw new Error(`Invalid day: ${value}`);
+  const day = Number.parseInt(value, 10);
+  if (!Number.isInteger(day) || day < 1) throw new Error(`Invalid day: ${value}`);
+  if (plan?.days?.length && day > plan.days.length) throw new Error(`Day ${day} is outside this ${plan.days.length}-day plan.`);
+  return day;
+}
+
+function localDateString(date = new Date(), timezone = "UTC") {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone || "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function daysBetweenDateStrings(startDate, endDate) {
+  const start = dateStringToUtc(startDate);
+  const end = dateStringToUtc(endDate);
+  return Math.floor((end.getTime() - start.getTime()) / 86400000);
+}
+
+function dateStringToUtc(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+  if (!match) return new Date(Number.NaN);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return new Date(Number.NaN);
+  }
+  return date;
+}
+
+function loadRuntime() {
+  const config = loadConfig();
+  return { config, plan: loadOrCreatePlan(config) };
+}
+
 function loadOrCreatePlan(config) {
   const planPath = path.join(resolveDataDir(config), "30-day-plan.json");
   const existing = readJson(planPath);
-  if (existing) return existing;
+  if (hasPlanDays(existing)) return existing;
   const plan = generate30DayPlan(config.learner);
   writeJson(planPath, plan);
   return plan;
+}
+
+function hasPlanDays(plan) {
+  return Array.isArray(plan?.days) && plan.days.length > 0;
+}
+
+function writeDataJson(config, fileName, payload) {
+  writeJson(path.join(resolveDataDir(config), fileName), payload);
+}
+
+function outputJson(payload) {
+  console.log(JSON.stringify(payload, null, 2));
 }

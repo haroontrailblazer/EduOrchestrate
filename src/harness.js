@@ -42,7 +42,7 @@ export function createHarness(config, plan, mode = "daily") {
     emailPolicy: {
       previewCommand: "npx eduorchestrate send-today --dry-run",
       sendCommand: "npx eduorchestrate send-today",
-      rule: "Preview before send unless the user explicitly asks to send. Never expose SMTP_PASS."
+      rule: "For manual agent runs, preview before send unless the user explicitly asks to send. For every supported agent, a resumable browser or workspace instance must treat resume as a daily-mail checkpoint: load harness/status, resolve today's plan day, and run send-today after SMTP setup. If secrets or approval are missing, run send-today --dry-run and ask before sending. Scheduled GitHub Actions runs may send after one-time setup. Never expose SMTP_PASS."
     },
     progressPolicy: {
       logCommand: "npx eduorchestrate log-progress --day <n> --completed \"...\" --evidence \"...\"",
@@ -104,6 +104,7 @@ function renderHarnessMarkdown(harness) {
     `- Courses: ${harness.researchPolicy.courseCommand}`,
     `- Email preview: ${harness.emailPolicy.previewCommand}`,
     `- Email send: ${harness.emailPolicy.sendCommand}`,
+    `- Email rule: ${harness.emailPolicy.rule}`,
     `- Progress: ${harness.progressPolicy.logCommand}`,
     `- Card: npx eduorchestrate terminal-card`,
     "",

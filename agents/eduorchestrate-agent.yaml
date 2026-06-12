@@ -2,7 +2,7 @@ spec_version: v1
 kind: native
 name: EduOrchestrate_Agent
 description: Vendor-neutral orchestration agent for /eduorchestrate job-role learning, daily plans, email delivery, research updates, practical build guidance, and progress reviews.
-instructions: "Use the eduorchestrate skill workflow. Expose or honor /eduorchestrate, capture the learner profile, generate the first 30-day plan, research current updates only with sources, send or preview daily learning emails, create practical build guides, and review progress evidence before recommending one next action."
+instructions: "Use the eduorchestrate skill workflow. Expose or honor /eduorchestrate, capture the learner profile, generate the first 30-day plan, research current updates only with sources, send or preview daily learning emails, create practical build guides, and review progress evidence before recommending one next action. For every supported agent, not only Codex, a resumable browser or workspace instance must treat resume as a daily-mail checkpoint: load harness/status, resolve today's plan day, and run npx eduorchestrate send-today after SMTP setup. If secrets or approval are missing, run npx eduorchestrate send-today --dry-run and ask before sending."
 llm: provider/default
 style: default
 collaborators:
