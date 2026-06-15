@@ -6,7 +6,11 @@ import test from "node:test";
 
 import { main, resolveScheduledDay } from "../../src/cli.js";
 import { generate30DayPlan, renderDailyEmail } from "../../src/planner.js";
+import { createResearchDigest, enrichDigestLinks } from "../../src/research.js";
 import { cronFromTime } from "../../src/workflow.js";
+
+// Keep the suite network-free and deterministic: never resolve live links.
+process.env.EDUORCHESTRATE_OFFLINE = "1";
 
 async function inTempDir(fn) {
   const oldCwd = process.cwd();
@@ -333,5 +337,113 @@ test("plan command honors requested days above the 30 day minimum", async () => 
     assert.equal(plan.days.length, 45);
     assert.equal(plan.primarySkill, "model evaluation");
     assert.equal(plan.nextSkillRecommendation.afterDay, 45);
+  });
+});
+
+test("offline link resolution falls back to verifiable search URLs", async () => {
+  const digest = createResearchDigest({
+    config: { learner: { targetRole: "Data Scientist" } },
+    topic: "pandas"
+  });
+  await enrichDigestLinks(digest, { offline: true });
+  assert.equal(digest.topVideo.resolved, false);
+  assert.match(digest.topVideo.url, /youtube\.com\/results/);
+  assert.equal(digest.topRepo.resolved, false);
+  assert.match(digest.topRepo.url, /github\.com\/search/);
+  assert.equal(digest.liveResolved, false);
+});
+
+test("link resolution returns concrete video and repo links (stubbed fetch)", async () => {
+  const originalFetch = global.fetch;
+  const originalOffline = process.env.EDUORCHESTRATE_OFFLINE;
+  delete process.env.EDUORCHESTRATE_OFFLINE;
+  global.fetch = async (url) => {
+    const target = String(url);
+    if (target.includes("youtube.com")) {
+      return {
+        ok: true,
+        text: async () =>
+          '{"videoId":"abc12345678","x":1},"title":{"runs":[{"text":"RAG eval crash course"}]}'
+      };
+    }
+    if (target.includes("api.github.com")) {
+      return {
+        ok: true,
+        json: async () => ({
+          items: [{ full_name: "promptfoo/promptfoo", html_url: "https://github.com/promptfoo/promptfoo", stargazers_count: 22220, description: "evals" }]
+        })
+      };
+    }
+    throw new Error(`unexpected url ${target}`);
+  };
+  try {
+    const digest = createResearchDigest({
+      config: { learner: { targetRole: "Agentic AI and LLM Engineer" } },
+      topic: "RAG evaluation"
+    });
+    await enrichDigestLinks(digest, { offline: false });
+    assert.equal(digest.topVideo.resolved, true);
+    assert.equal(digest.topVideo.url, "https://www.youtube.com/watch?v=abc12345678");
+    assert.match(digest.topVideo.title, /RAG eval crash course/);
+    assert.equal(digest.topRepo.resolved, true);
+    assert.equal(digest.topRepo.url, "https://github.com/promptfoo/promptfoo");
+    assert.equal(digest.liveResolved, true);
+    assert.equal(digest.sources[0].type, "resolved-video");
+    assert.equal(digest.videos.length, 1);
+    assert.equal(digest.repos.length, 1);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalOffline !== undefined) process.env.EDUORCHESTRATE_OFFLINE = originalOffline;
+  }
+});
+
+test("daily email embeds the resolved top video and repo links", () => {
+  const config = {
+    learner: { name: "L", email: "l@example.com", targetRole: "Agentic AI and LLM Engineer", currentLearning: "x", focusSkill: "RAG" }
+  };
+  const plan = generate30DayPlan(config.learner);
+  const researchDigest = {
+    topic: "RAG",
+    sources: [],
+    topVideo: { url: "https://www.youtube.com/watch?v=abc12345678", title: "T", resolved: true },
+    topRepo: { url: "https://github.com/promptfoo/promptfoo", title: "promptfoo/promptfoo", resolved: true },
+    topDoc: { url: "https://huggingface.co/docs" }
+  };
+  const email = renderDailyEmail(config, plan, 1, { researchDigest });
+  assert.match(email.text, /Watch \(video\): https:\/\/www\.youtube\.com\/watch\?v=abc12345678/);
+  assert.match(email.text, /Build from \(repo\): https:\/\/github\.com\/promptfoo\/promptfoo/);
+  assert.match(email.text, /Read \(docs\): https:\/\/huggingface\.co\/docs/);
+});
+
+test("daily email renders clickable html with the resolved video link", () => {
+  const config = {
+    learner: { name: "L", email: "l@example.com", targetRole: "Agentic AI and LLM Engineer", currentLearning: "x", focusSkill: "RAG" }
+  };
+  const plan = generate30DayPlan(config.learner);
+  const researchDigest = {
+    topic: "RAG",
+    sources: [],
+    videos: [],
+    repos: [],
+    topVideo: { url: "https://www.youtube.com/watch?v=abc12345678", title: "T", resolved: true },
+    topRepo: { url: "https://github.com/promptfoo/promptfoo", title: "promptfoo/promptfoo", resolved: true },
+    topDoc: { url: "https://huggingface.co/docs" }
+  };
+  const email = renderDailyEmail(config, plan, 1, { researchDigest });
+  assert.ok(email.html, "html body present");
+  assert.match(email.html, /<a [^>]*href="https:\/\/www\.youtube\.com\/watch\?v=abc12345678"/);
+  assert.match(email.html, /Watch the top video/);
+  assert.match(email.html, /<a [^>]*href="https:\/\/github\.com\/promptfoo\/promptfoo"/);
+});
+
+test("links command resolves and persists data/links.json", async () => {
+  await inTempDir(async (dir) => {
+    await main(["--yes", "--name", "L", "--email", "l@example.com", "--role", "Data Scientist", "--days", "30"]);
+    await main(["links", "--day", "1", "--offline"]);
+    const links = JSON.parse(fs.readFileSync(path.join(dir, "data/links.json"), "utf8"));
+    assert.equal(links.day, 1);
+    assert.match(links.topVideo.url, /youtube\.com/);
+    assert.match(links.topRepo.url, /github\.com/);
+    assert.equal(Array.isArray(links.videos), true);
   });
 });

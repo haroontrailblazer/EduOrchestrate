@@ -9,7 +9,7 @@ import { generate30DayPlan, renderDailyEmail } from "./planner.js";
 import { buildProgressionCard, copyDefaultTerminalCard, saveProgressionCard } from "./progression-card.js";
 import { appendProgress, createWeeklySummary, planStatus, reviewProgress } from "./progress.js";
 import { collectOnboarding } from "./prompts.js";
-import { appendResearchIndex, createResearchDigest, saveResearchDigest } from "./research.js";
+import { appendResearchIndex, createResearchDigest, enrichDigestLinks, saveResearchDigest } from "./research.js";
 import { writeGithubWorkflow } from "./workflow.js";
 
 export async function main(argv = []) {
@@ -18,6 +18,7 @@ export async function main(argv = []) {
   if (command === "plan") return regeneratePlan(argv.slice(1));
   if (command === "status") return showStatus();
   if (command === "research") return research(argv.slice(1));
+  if (command === "links") return links(argv.slice(1));
   if (command === "harness") return harness(argv.slice(1));
   if (command === "courses") return courses();
   if (command === "log-progress") return logProgress(argv.slice(1));
@@ -72,6 +73,7 @@ async function init(argv) {
   const harnessPaths = saveHarness(config, createHarness(config, plan, "init"));
   const coursePaths = saveCoursePack(config, createCoursePack(config, plan));
   const digest = createResearchDigest({ config, topic: plan.days[0].title, day: 1, roleKey: plan.roleKey });
+  await enrichDigestLinks(digest, { offline: argv.includes("--offline") });
   const digestPath = saveResearchDigest(config, digest);
   appendResearchIndex(config, digestPath, digest);
   const workflowPath = writeGithubWorkflow(config);
@@ -134,6 +136,7 @@ async function sendToday(argv) {
     day,
     roleKey: plan.roleKey
   });
+  await enrichDigestLinks(digest, { offline: argv.includes("--offline") });
   const digestPath = saveResearchDigest(config, digest);
   appendResearchIndex(config, digestPath, digest);
   const env = { ...process.env, ...loadEnvFile(path.join(process.cwd(), ".env.local")) };
@@ -158,14 +161,36 @@ function showStatus() {
   outputJson(planStatus(config, plan));
 }
 
-function research(argv) {
+async function research(argv) {
   const { config, plan } = loadRuntime();
   const day = Number.parseInt(valueAfter(argv, "--day") || "1", 10);
   const topic = valueAfter(argv, "--topic") || plan.days.find((entry) => entry.day === day)?.title || config.learner.targetRole;
   const digest = createResearchDigest({ config, topic, day, roleKey: plan.roleKey });
+  await enrichDigestLinks(digest, { offline: argv.includes("--offline") });
   const digestPath = saveResearchDigest(config, digest);
   appendResearchIndex(config, digestPath, digest);
   outputJson({ status: "saved", path: digestPath, digest });
+}
+
+async function links(argv) {
+  const { config, plan } = loadRuntime();
+  const day = Number.parseInt(valueAfter(argv, "--day") || "1", 10);
+  const topic = valueAfter(argv, "--topic") || plan.days.find((entry) => entry.day === day)?.title || config.learner.targetRole;
+  const digest = createResearchDigest({ config, topic, day, roleKey: plan.roleKey });
+  await enrichDigestLinks(digest, { offline: argv.includes("--offline"), limit: 3 });
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    day,
+    topic,
+    liveResolved: digest.liveResolved,
+    topVideo: digest.topVideo,
+    topRepo: digest.topRepo,
+    topDoc: digest.topDoc,
+    videos: digest.videos || [],
+    repos: digest.repos || []
+  };
+  writeDataJson(config, "links.json", payload);
+  outputJson({ status: "resolved", path: "data/links.json", ...payload });
 }
 
 function harness(argv) {
@@ -294,6 +319,7 @@ Commands:
   npx eduorchestrate harness
   npx eduorchestrate courses
   npx eduorchestrate research --day 1
+  npx eduorchestrate links --day 1
   npx eduorchestrate send-today --dry-run
   npx eduorchestrate log-progress --day 1 --completed "Built setup" --evidence "Repo link"
   npx eduorchestrate weekly-summary --week 1

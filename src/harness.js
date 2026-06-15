@@ -29,10 +29,13 @@ export function createHarness(config, plan, mode = "daily") {
     },
     researchPolicy: {
       command: "npx eduorchestrate research --day <n>",
+      linksCommand: "npx eduorchestrate links --day <n>",
       courseCommand: "npx eduorchestrate courses",
+      offlineFlag: "Append --offline (or set EDUORCHESTRATE_OFFLINE=1) to skip live link resolution.",
+      liveResolution: "research resolves a concrete top YouTube video link (digest.topVideo.url) and top GitHub repo (digest.topRepo.url) via Node fetch; the daily email embeds the watchable video link directly. On network failure it falls back to search URLs.",
       keepEffectiveness: [
         "Use official docs and reputable sources first.",
-        "Use YouTube and GitHub as search entry points, not unverified recommendations.",
+        "Share the resolved top video and repo links directly; treat them as current top results to verify, not blind endorsements.",
         "Use courses for official/MNC course catalogs and newsletters; do not default to Coursera or Udemy.",
         "Research only current or role-changing topics deeply; keep fundamentals concise.",
         "Persist the digest and cite artifact paths instead of pasting long source lists."
@@ -62,6 +65,7 @@ export function createHarness(config, plan, mode = "daily") {
       harness: "data/eduorchestrate-harness.json",
       harnessMarkdown: "data/eduorchestrate-harness.md",
       researchIndex: "data/research-index.json",
+      resolvedLinks: "data/links.json",
       learningSources: "data/learning-sources.json",
       progressLog: "data/progress-log.json",
       latestEmail: "data/latest-email.json",

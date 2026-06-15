@@ -260,6 +260,11 @@ export function renderDailyEmail(config, plan, dayNumber, { progressReview = nul
   const research = researchDigest
     ? ["", "Fresh research digest:", `Topic: ${researchDigest.topic}`, ...researchDigest.sources.slice(0, 5).map((source) => `- ${source.title}: ${source.url}`)]
     : [];
+  const topLinkLines = [];
+  if (researchDigest?.topVideo?.url) topLinkLines.push(`Watch (video): ${researchDigest.topVideo.url}`);
+  if (researchDigest?.topRepo?.url) topLinkLines.push(`Build from (repo): ${researchDigest.topRepo.url}`);
+  if (researchDigest?.topDoc?.url) topLinkLines.push(`Read (docs): ${researchDigest.topDoc.url}`);
+  const topLinks = topLinkLines.length ? ["", "Today's links (open these first):", ...topLinkLines] : [];
   const progress = progressReview
     ? ["", "Progress signal:", `Momentum: ${progressReview.momentum}`, `Next action: ${progressReview.nextAction}`, `Risk: ${progressReview.risk}`]
     : [];
@@ -276,10 +281,7 @@ export function renderDailyEmail(config, plan, dayNumber, { progressReview = nul
         "Full source pack: data/learning-sources.md"
       ]
     : [];
-  return {
-    to: config.learner.email,
-    subject: `EduOrchestrate Day ${day.day}: ${day.title}`,
-    text: [
+  const text = [
       `Hi ${config.learner.name},`,
       "",
       `Today is Day ${day.day} for your ${config.learner.targetRole} path.`,
@@ -292,6 +294,7 @@ export function renderDailyEmail(config, plan, dayNumber, { progressReview = nul
       `Concepts: ${day.concepts.join(", ")}`,
       `Build task: ${day.setupOrBuildTask}`,
       `Portfolio link: ${day.portfolioArtifact}`,
+      ...topLinks,
       "",
       "References to research:",
       references,
@@ -308,6 +311,99 @@ export function renderDailyEmail(config, plan, dayNumber, { progressReview = nul
       `Bridge: ${day.nextDayBridge}`,
       "",
       "Use /eduorchestrate in your agent to adjust the plan or review progress."
-    ].join("\n")
+    ].join("\n");
+  const html = renderDailyEmailHtml({ config, day, timeBox, researchDigest, progressReview, progressionCard, coursePack });
+  return {
+    to: config.learner.email,
+    subject: `EduOrchestrate Day ${day.day}: ${day.title}`,
+    text,
+    html
   };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderDailyEmailHtml({ config, day, timeBox, researchDigest, progressReview, progressionCard, coursePack }) {
+  const orange = "#e97926";
+  const muted = "#9c9188";
+  const ink = "#2a2520";
+
+  const button = (label, url) =>
+    `<a href="${escapeHtml(url)}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 16px;background:${orange};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${escapeHtml(label)}</a>`;
+
+  const buttons = [];
+  if (researchDigest?.topVideo?.url) buttons.push(button("Watch the top video", researchDigest.topVideo.url));
+  if (researchDigest?.topRepo?.url) buttons.push(button("Open the top repo", researchDigest.topRepo.url));
+  if (researchDigest?.topDoc?.url) buttons.push(button("Read the docs", researchDigest.topDoc.url));
+  const buttonsBlock = buttons.length
+    ? `<div style="margin:4px 0 18px;">${buttons.join("")}</div>`
+    : "";
+
+  const link = (label, url) => `<a href="${escapeHtml(url)}" style="color:${orange};text-decoration:none;">${escapeHtml(label)}</a>`;
+  const listItems = (items) => items.map((line) => `<li style="margin:4px 0;">${line}</li>`).join("");
+
+  const moreVideos = (researchDigest?.videos || []).slice(1, 3).map((video) => link(video.title || video.url, video.url));
+  const moreRepos = (researchDigest?.repos || []).slice(1, 3).map((repo) => link(`${repo.title}${repo.stars != null ? ` (★${repo.stars})` : ""}`, repo.url));
+  const moreLinks = [...moreVideos, ...moreRepos];
+  const moreBlock = moreLinks.length
+    ? `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">More to skim</p><ul style="margin:0 0 8px;padding-left:18px;font-size:14px;color:${ink};">${listItems(moreLinks)}</ul>`
+    : "";
+
+  const refs = day.references.map((ref) => link(ref.title, ref.url));
+  const refsBlock = `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">Research entry points</p><ul style="margin:0 0 8px;padding-left:18px;font-size:14px;color:${ink};">${listItems(refs)}</ul>`;
+
+  const facts = [
+    ["Difficulty", day.difficulty],
+    ["Timebox", timeBox],
+    ["Concepts", day.concepts.join(", ")],
+    ["Build task", day.setupOrBuildTask],
+    ["Portfolio", day.portfolioArtifact]
+  ]
+    .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:${muted};font-size:13px;vertical-align:top;white-space:nowrap;">${k}</td><td style="padding:4px 0;font-size:14px;color:${ink};">${escapeHtml(v)}</td></tr>`)
+    .join("");
+
+  const progressBlock = progressReview
+    ? `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">Progress signal</p><p style="margin:0;font-size:14px;color:${ink};">Momentum: <b>${escapeHtml(progressReview.momentum)}</b> · Next: ${escapeHtml(progressReview.nextAction)}</p>`
+    : "";
+
+  const coursesBlock = coursePack
+    ? `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">Official learning sources</p><ul style="margin:0 0 8px;padding-left:18px;font-size:14px;color:${ink};">${listItems(coursePack.recommendedSources.slice(0, 2).map((s) => link(s.title, s.url)))}</ul>`
+    : "";
+
+  const cardBlock = progressionCard
+    ? `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">Progression card</p><pre style="margin:0;padding:14px;background:#0d1117;color:#c9d1d9;border-radius:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;overflow:auto;white-space:pre-wrap;">${escapeHtml(progressionCard.terminalLines ? progressionCard.terminalLines.join("\n") : progressionCard.markdown)}</pre>`
+    : "";
+
+  const questions = `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">Review questions</p><ul style="margin:0;padding-left:18px;font-size:14px;color:${ink};">${listItems(day.reviewQuestions.map(escapeHtml))}</ul>`;
+
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#f4f1ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${ink};">
+  <div style="max-width:640px;margin:0 auto;padding:24px 16px;">
+    <div style="background:#ffffff;border:1px solid #e2d8cf;border-radius:14px;overflow:hidden;">
+      <div style="background:#0d1117;padding:14px 22px;color:#c9d1d9;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;">&gt;_ eduorchestrate — day ${day.day}</div>
+      <div style="padding:22px;">
+        <p style="margin:0 0 4px;color:${muted};font-size:13px;">Hi ${escapeHtml(config.learner.name)} — Day ${day.day} of your ${escapeHtml(config.learner.targetRole)} path.</p>
+        <h1 style="margin:6px 0 8px;font-size:22px;line-height:1.2;color:#0a0a0a;">${escapeHtml(day.title)}</h1>
+        <p style="margin:0 0 16px;color:#5e554d;font-size:15px;">${escapeHtml(day.goal)}</p>
+        ${buttonsBlock}
+        <table style="border-collapse:collapse;margin:4px 0 4px;">${facts}</table>
+        ${moreBlock}
+        ${refsBlock}
+        ${progressBlock}
+        ${coursesBlock}
+        ${cardBlock}
+        ${questions}
+        <p style="margin:18px 0 0;font-size:14px;color:#5e554d;">Bridge: ${escapeHtml(day.nextDayBridge)}</p>
+      </div>
+    </div>
+    <p style="text-align:center;color:${muted};font-size:12px;margin:14px 0 0;">Use <b>/eduorchestrate</b> in your agent to adjust the plan or review progress.</p>
+  </div>
+</body></html>`;
 }

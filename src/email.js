@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import net from "node:net";
 import tls from "node:tls";
 
@@ -16,16 +17,20 @@ export async function sendMail({ smtp, message, dryRun = false }) {
     return { dryRun: true, message };
   }
   validateSmtp(smtp);
-  const secure = smtp.port === 465;
-  const socket = secure
+  // Port 465 = implicit TLS. Anything else (e.g. 587) starts plaintext and
+  // upgrades via STARTTLS. Both paths end fully encrypted before AUTH.
+  const implicitTls = smtp.port === 465;
+  let socket = implicitTls
     ? tls.connect({ host: smtp.host, port: smtp.port, servername: smtp.host })
     : net.connect({ host: smtp.host, port: smtp.port });
-  const client = new SmtpClient(socket);
+  let client = new SmtpClient(socket);
   await client.expect(220);
-  await client.command(`EHLO eduorchestrate.local`, 250);
-  if (!secure) {
+  await client.command("EHLO eduorchestrate.local", 250);
+  if (!implicitTls) {
     await client.command("STARTTLS", 220);
-    throw new Error("STARTTLS upgrade is not implemented in the dependency-free mailer. Use SMTP port 465 or --dry-run.");
+    socket = await upgradeToTls(socket, smtp.host);
+    client = new SmtpClient(socket);
+    await client.command("EHLO eduorchestrate.local", 250);
   }
   await client.command("AUTH LOGIN", 334);
   await client.command(Buffer.from(smtp.user).toString("base64"), 334);
@@ -37,7 +42,18 @@ export async function sendMail({ smtp, message, dryRun = false }) {
   await client.expect(250);
   await client.command("QUIT", 221);
   socket.end();
-  return { sent: true, to: message.to, subject: message.subject };
+  return { sent: true, to: message.to, subject: message.subject, transport: implicitTls ? "implicit-tls" : "starttls" };
+}
+
+function upgradeToTls(socket, host) {
+  // Hand the plaintext socket to the TLS layer after STARTTLS. Detach the old
+  // plaintext reader first so it does not consume encrypted bytes.
+  socket.removeAllListeners("data");
+  socket.removeAllListeners("error");
+  return new Promise((resolve, reject) => {
+    const secureSocket = tls.connect({ socket, servername: host }, () => resolve(secureSocket));
+    secureSocket.once("error", reject);
+  });
 }
 
 function validateSmtp(smtp) {
@@ -47,16 +63,53 @@ function validateSmtp(smtp) {
 }
 
 function renderSmtpMessage(from, message) {
-  return [
+  const headers = [
     `From: ${from}`,
     `To: ${message.to}`,
     `Subject: ${message.subject}`,
+    `Date: ${new Date().toUTCString()}`,
+    `Message-ID: <${crypto.randomUUID()}@eduorchestrate>`,
+    "MIME-Version: 1.0"
+  ];
+  if (message.html) {
+    const boundary = `eo_${crypto.randomBytes(12).toString("hex")}`;
+    return [
+      ...headers,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      base64Lines(message.text),
+      `--${boundary}`,
+      "Content-Type: text/html; charset=utf-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      base64Lines(message.html),
+      `--${boundary}--`,
+      ".",
+      ""
+    ].join("\r\n");
+  }
+  return [
+    ...headers,
     "Content-Type: text/plain; charset=utf-8",
     "",
-    message.text,
+    dotStuff(message.text),
     ".",
     ""
   ].join("\r\n");
+}
+
+// base64 split into 76-char lines (RFC 2045); base64 never starts a line with
+// "." so no SMTP dot-stuffing is needed for these parts.
+function base64Lines(value) {
+  return (Buffer.from(String(value), "utf8").toString("base64").match(/.{1,76}/g) || [""]).join("\r\n");
+}
+
+function dotStuff(text) {
+  return String(text).replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
 }
 
 class SmtpClient {
