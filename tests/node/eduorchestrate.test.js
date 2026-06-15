@@ -425,14 +425,17 @@ test("daily email renders clickable html with the resolved video link", () => {
     sources: [],
     videos: [],
     repos: [],
-    topVideo: { url: "https://www.youtube.com/watch?v=abc12345678", title: "T", resolved: true },
+    topVideo: { url: "https://www.youtube.com/watch?v=abc12345678", title: "RAG eval crash course", resolved: true },
     topRepo: { url: "https://github.com/promptfoo/promptfoo", title: "promptfoo/promptfoo", resolved: true },
-    topDoc: { url: "https://huggingface.co/docs" }
+    topDoc: { url: "https://huggingface.co/docs", title: "Hugging Face docs" }
   };
   const email = renderDailyEmail(config, plan, 1, { researchDigest });
   assert.ok(email.html, "html body present");
+  // the specific video title is shown...
+  assert.match(email.html, /RAG eval crash course/);
+  // ...and its actual URL is visible (not just a generic button label)
+  assert.match(email.html, />https:\/\/www\.youtube\.com\/watch\?v=abc12345678</);
   assert.match(email.html, /<a [^>]*href="https:\/\/www\.youtube\.com\/watch\?v=abc12345678"/);
-  assert.match(email.html, /Watch the top video/);
   assert.match(email.html, /<a [^>]*href="https:\/\/github\.com\/promptfoo\/promptfoo"/);
 });
 

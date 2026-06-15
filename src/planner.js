@@ -261,8 +261,14 @@ export function renderDailyEmail(config, plan, dayNumber, { progressReview = nul
     ? ["", "Fresh research digest:", `Topic: ${researchDigest.topic}`, ...researchDigest.sources.slice(0, 5).map((source) => `- ${source.title}: ${source.url}`)]
     : [];
   const topLinkLines = [];
-  if (researchDigest?.topVideo?.url) topLinkLines.push(`Watch (video): ${researchDigest.topVideo.url}`);
-  if (researchDigest?.topRepo?.url) topLinkLines.push(`Build from (repo): ${researchDigest.topRepo.url}`);
+  if (researchDigest?.topVideo?.url) {
+    if (researchDigest.topVideo.resolved && researchDigest.topVideo.title) topLinkLines.push(`Watch (video): ${researchDigest.topVideo.title}`);
+    topLinkLines.push(`Watch (video): ${researchDigest.topVideo.url}`);
+  }
+  if (researchDigest?.topRepo?.url) {
+    if (researchDigest.topRepo.resolved && researchDigest.topRepo.title) topLinkLines.push(`Build from (repo): ${researchDigest.topRepo.title}`);
+    topLinkLines.push(`Build from (repo): ${researchDigest.topRepo.url}`);
+  }
   if (researchDigest?.topDoc?.url) topLinkLines.push(`Read (docs): ${researchDigest.topDoc.url}`);
   const topLinks = topLinkLines.length ? ["", "Today's links (open these first):", ...topLinkLines] : [];
   const progress = progressReview
@@ -334,25 +340,32 @@ function renderDailyEmailHtml({ config, day, timeBox, researchDigest, progressRe
   const muted = "#9c9188";
   const ink = "#2a2520";
 
-  const button = (label, url) =>
-    `<a href="${escapeHtml(url)}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 16px;background:${orange};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${escapeHtml(label)}</a>`;
+  const mono = "ui-monospace,Menlo,Consolas,monospace";
 
-  const buttons = [];
-  if (researchDigest?.topVideo?.url) buttons.push(button("Watch the top video", researchDigest.topVideo.url));
-  if (researchDigest?.topRepo?.url) buttons.push(button("Open the top repo", researchDigest.topRepo.url));
-  if (researchDigest?.topDoc?.url) buttons.push(button("Read the docs", researchDigest.topDoc.url));
-  const buttonsBlock = buttons.length
-    ? `<div style="margin:4px 0 18px;">${buttons.join("")}</div>`
-    : "";
+  // Each top link shows the resolved TITLE plus its actual, visible URL.
+  const linkCard = (label, title, url, watch) => `<div style="margin:0 0 10px;padding:12px 14px;border:1px solid #e2d8cf;border-radius:10px;background:#fbf6ef;">
+        <div style="font-size:11px;color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">${escapeHtml(label)}</div>
+        <a href="${escapeHtml(url)}" style="color:#0a0a0a;font-weight:600;font-size:15px;line-height:1.3;text-decoration:none;">${escapeHtml(title)}</a>
+        ${watch ? `<a href="${escapeHtml(url)}" style="display:inline-block;margin:8px 8px 2px 0;padding:7px 12px;background:${orange};color:#ffffff;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;">Watch ▶</a>` : ""}
+        <div style="margin-top:5px;"><a href="${escapeHtml(url)}" style="color:${orange};font-family:${mono};font-size:12px;word-break:break-all;text-decoration:underline;">${escapeHtml(url)}</a></div>
+      </div>`;
+
+  const topCards = [];
+  if (researchDigest?.topVideo?.url) topCards.push(linkCard("Watch — top video for today", researchDigest.topVideo.title || "Top video", researchDigest.topVideo.url, true));
+  if (researchDigest?.topRepo?.url) topCards.push(linkCard("Build from — top repo", researchDigest.topRepo.title || "Top repo", researchDigest.topRepo.url, false));
+  if (researchDigest?.topDoc?.url) topCards.push(linkCard("Read — official docs", researchDigest.topDoc.title || "Docs", researchDigest.topDoc.url, false));
+  const topBlock = topCards.length ? `<div style="margin:4px 0 18px;">${topCards.join("")}</div>` : "";
 
   const link = (label, url) => `<a href="${escapeHtml(url)}" style="color:${orange};text-decoration:none;">${escapeHtml(label)}</a>`;
   const listItems = (items) => items.map((line) => `<li style="margin:4px 0;">${line}</li>`).join("");
 
-  const moreVideos = (researchDigest?.videos || []).slice(1, 3).map((video) => link(video.title || video.url, video.url));
-  const moreRepos = (researchDigest?.repos || []).slice(1, 3).map((repo) => link(`${repo.title}${repo.stars != null ? ` (★${repo.stars})` : ""}`, repo.url));
+  // "More to skim" also shows each title above its visible URL.
+  const moreItem = (title, url) => `<li style="margin:8px 0;list-style:none;"><a href="${escapeHtml(url)}" style="color:#0a0a0a;font-weight:600;text-decoration:none;">${escapeHtml(title)}</a><br><a href="${escapeHtml(url)}" style="color:${orange};font-family:${mono};font-size:12px;word-break:break-all;text-decoration:none;">${escapeHtml(url)}</a></li>`;
+  const moreVideos = (researchDigest?.videos || []).slice(1, 3).map((video) => moreItem(video.title || video.url, video.url));
+  const moreRepos = (researchDigest?.repos || []).slice(1, 3).map((repo) => moreItem(`${repo.title}${repo.stars != null ? ` (★${repo.stars})` : ""}`, repo.url));
   const moreLinks = [...moreVideos, ...moreRepos];
   const moreBlock = moreLinks.length
-    ? `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">More to skim</p><ul style="margin:0 0 8px;padding-left:18px;font-size:14px;color:${ink};">${listItems(moreLinks)}</ul>`
+    ? `<p style="margin:16px 0 4px;font-weight:600;font-size:14px;">More to skim</p><ul style="margin:0 0 8px;padding:0;font-size:14px;color:${ink};">${moreLinks.join("")}</ul>`
     : "";
 
   const refs = day.references.map((ref) => link(ref.title, ref.url));
@@ -392,7 +405,7 @@ function renderDailyEmailHtml({ config, day, timeBox, researchDigest, progressRe
         <p style="margin:0 0 4px;color:${muted};font-size:13px;">Hi ${escapeHtml(config.learner.name)} — Day ${day.day} of your ${escapeHtml(config.learner.targetRole)} path.</p>
         <h1 style="margin:6px 0 8px;font-size:22px;line-height:1.2;color:#0a0a0a;">${escapeHtml(day.title)}</h1>
         <p style="margin:0 0 16px;color:#5e554d;font-size:15px;">${escapeHtml(day.goal)}</p>
-        ${buttonsBlock}
+        ${topBlock}
         <table style="border-collapse:collapse;margin:4px 0 4px;">${facts}</table>
         ${moreBlock}
         ${refsBlock}

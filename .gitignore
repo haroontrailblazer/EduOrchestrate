@@ -5,3 +5,4 @@ node_modules/
 .npm-cache/
 .env.local
 data/
+.env
