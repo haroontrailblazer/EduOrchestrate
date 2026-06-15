@@ -1,6 +1,6 @@
 {
   "name": "eduorchestrate",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Universal agent skill and daily learning orchestrator for job-role learners.",
   "type": "module",
   "bin": {
