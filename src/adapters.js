@@ -6,6 +6,64 @@ const MAIL_RESUME_POLICY = `Mail resume policy: apply this to every supported ag
 
 const UNIVERSAL_PROMPT = `Use /eduorchestrate as the learner command. When invoked, load the EduOrchestrate workflow and its prebuilt terminal-card program; never recreate, type out, or hand-design the card UI in the agent prompt. Ask for missing learner profile details, ask what the learner is currently studying, ask the first skill they want to focus on, generate or update an adaptive plan with a fixed 30-day minimum, research current and trending references, send or preview daily emails, log progress, load the bundled default card or CLI-produced card artifact, summarize the week, recommend the next skill after the plan window, and keep recommendations practical, sourced, and focused. Research resolves a concrete top video link (digest.topVideo.url) and top GitHub repo (digest.topRepo.url) so the daily email carries a watchable link, not only search queries; on network failure it falls back to search URLs, and --offline or EDUORCHESTRATE_OFFLINE=1 skips resolution. The dependency-free mailer supports implicit TLS (port 465) and STARTTLS (port 587). ${MAIL_RESUME_POLICY} If native slash commands are unavailable, treat "eduorchestrate" or "use EduOrchestrate" as equivalent to /eduorchestrate.`;
 
+// Per-command Claude Code slash commands. Each becomes a separate /<name>
+// entry in the slash menu so the daily loop is reachable without typing npx.
+const CLAUDE_COMMANDS = [
+  {
+    name: "eduorchestrate-status",
+    description: "EduOrchestrate: current learning day, momentum, and next action",
+    allowedTools: "Bash(npx eduorchestrate status:*)",
+    body: "Show the learner's EduOrchestrate status. Run `npx eduorchestrate status` and present, using only the command output: learner, role, primary skill, currently learning, active day, progress (completed/total), momentum, risk, and the next action. Do not invent values."
+  },
+  {
+    name: "eduorchestrate-research",
+    description: "EduOrchestrate: resolve today's sourced links (video, docs, repo)",
+    argumentHint: "[day]",
+    allowedTools: "Bash(npx eduorchestrate research:*), Bash(npx eduorchestrate status:*)",
+    body: "Resolve the learner's research links. If \"$ARGUMENTS\" contains a day number use it, otherwise read the current day from `npx eduorchestrate status`. Then run `npx eduorchestrate research --day <day>` and present the resolved top YouTube video link (with its title), the official docs, and the GitHub repo result. Keep it short and link-first."
+  },
+  {
+    name: "eduorchestrate-send",
+    description: "EduOrchestrate: preview today's learning email (dry-run, never sends)",
+    allowedTools: "Bash(npx eduorchestrate send-today --dry-run:*)",
+    body: "Preview today's EduOrchestrate email. Run `npx eduorchestrate send-today --dry-run` and summarize what would be sent: subject, the top video link, docs, build task, and timebox. This command is preview-only — never run it without --dry-run."
+  },
+  {
+    name: "eduorchestrate-log",
+    description: "EduOrchestrate: log today's progress with evidence",
+    argumentHint: "<what you did> | <evidence link>",
+    allowedTools: "Bash(npx eduorchestrate log-progress:*), Bash(npx eduorchestrate status:*)",
+    body: "Log the learner's progress. Read what they completed and an evidence link/path from \"$ARGUMENTS\". If either is missing, ASK for it — never log a placeholder entry. Read the current day from `npx eduorchestrate status`, then run `npx eduorchestrate log-progress --day <day> --completed \"<note>\" --evidence \"<link>\"` (optionally --confidence <1-5>) and confirm the updated momentum."
+  },
+  {
+    name: "eduorchestrate-card",
+    description: "EduOrchestrate: render the skill progression card",
+    allowedTools: "Bash(npx eduorchestrate progress-card:*)",
+    body: "Render the learner's skill progression card. Run `npx eduorchestrate progress-card` and show completed/total days, the commit-style grid, and the terminal-card status lines. Mention the saved data/terminal-card.svg."
+  },
+  {
+    name: "eduorchestrate-weekly",
+    description: "EduOrchestrate: summarize a learning week",
+    argumentHint: "[week]",
+    allowedTools: "Bash(npx eduorchestrate weekly-summary:*)",
+    body: "Summarize a learning week. Run `npx eduorchestrate weekly-summary --week <n>` (n from \"$ARGUMENTS\", default 1) and present planned vs completed days and the next-week focus."
+  },
+  {
+    name: "eduorchestrate-next",
+    description: "EduOrchestrate: recommend the next skill after the plan window",
+    allowedTools: "Bash(npx eduorchestrate recommend-next:*)",
+    body: "Recommend the next skill. Run `npx eduorchestrate recommend-next` and present whether the learner can advance, the recommended next skill, and the reason."
+  }
+];
+
+function commandMarkdown(command) {
+  const frontmatter = ["---", `description: ${command.description}`];
+  if (command.argumentHint) frontmatter.push(`argument-hint: ${command.argumentHint}`);
+  if (command.allowedTools) frontmatter.push(`allowed-tools: ${command.allowedTools}`);
+  frontmatter.push("---", "");
+  return `${frontmatter.join("\n")}${command.body}\n`;
+}
+
 export function writeAgentAdapters(rootDir = process.cwd()) {
   const outputs = [];
   outputs.push(writeFile(rootDir, ".claude/skills/eduorchestrate/SKILL.md", claudeSkill()));
@@ -18,6 +76,9 @@ export function writeAgentAdapters(rootDir = process.cwd()) {
   outputs.push(writeFile(rootDir, ".eduorchestrate/adapters/generic/EDUORCHESTRATE.md", genericInstructions()));
   outputs.push(writeFile(rootDir, ".eduorchestrate/mcp/server.js", mcpServer()));
   outputs.push(writeFile(rootDir, ".eduorchestrate/mcp/manifest.json", mcpManifest()));
+  for (const command of CLAUDE_COMMANDS) {
+    outputs.push(writeFile(rootDir, `.claude/commands/${command.name}.md`, commandMarkdown(command)));
+  }
   return outputs;
 }
 

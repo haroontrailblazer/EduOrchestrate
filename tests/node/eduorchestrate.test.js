@@ -56,6 +56,13 @@ test("one-command setup writes universal agent adapters and plan", async () => {
       ".eduorchestrate/adapters/hermas/manifest.json",
       ".eduorchestrate/adapters/generic/EDUORCHESTRATE.md",
       ".eduorchestrate/mcp/manifest.json",
+      ".claude/commands/eduorchestrate-status.md",
+      ".claude/commands/eduorchestrate-research.md",
+      ".claude/commands/eduorchestrate-send.md",
+      ".claude/commands/eduorchestrate-log.md",
+      ".claude/commands/eduorchestrate-card.md",
+      ".claude/commands/eduorchestrate-weekly.md",
+      ".claude/commands/eduorchestrate-next.md",
       ".github/workflows/eduorchestrate-daily.yml",
       "data/30-day-plan.json",
       "data/eduorchestrate-harness.json",
@@ -71,6 +78,13 @@ test("one-command setup writes universal agent adapters and plan", async () => {
     for (const relative of expected) {
       assert.equal(fs.existsSync(path.join(dir, relative)), true, relative);
     }
+
+    const statusCmd = fs.readFileSync(path.join(dir, ".claude/commands/eduorchestrate-status.md"), "utf8");
+    assert.match(statusCmd, /^---/);
+    assert.match(statusCmd, /allowed-tools: Bash\(npx eduorchestrate status/);
+    assert.match(statusCmd, /npx eduorchestrate status/);
+    const researchCmd = fs.readFileSync(path.join(dir, ".claude/commands/eduorchestrate-research.md"), "utf8");
+    assert.match(researchCmd, /argument-hint:/);
 
     const plan = JSON.parse(fs.readFileSync(path.join(dir, "data/30-day-plan.json"), "utf8"));
     const config = JSON.parse(fs.readFileSync(path.join(dir, "eduorchestrate.config.json"), "utf8"));
