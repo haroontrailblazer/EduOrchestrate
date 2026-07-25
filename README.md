@@ -4,6 +4,8 @@
 
 # EduOrchestrate
 
+https://playground.likec4.dev/share/qqCwxBrq0d/
+
 ### Turn any AI coding agent into a daily learning command center.
 
 **One command** turns a target job role into an adaptive plan, trend-aware research, daily emails, and a skill progression card — running locally inside the agent you already use. Your data, your machine.

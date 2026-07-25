@@ -1,0 +1,820 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  EduOrchestrate — AI-powered daily learning command center
+//  https://eolearn.vercel.app · https://github.com/haroontrailblazer/EduOrchestrate
+//
+//  BOUNDARY DECISION, read this first.
+//
+//  EduOrchestrate is local-first, so the ownership test lands differently than
+//  it does on a hosted product. Everything the learner's machine writes and
+//  owns is a CONTAINER of the system, even though it is only a folder:
+//
+//    data/                      → Learning state.   Owned. Container.
+//    eduorchestrate.config.json → Project config.   Owned. Container.
+//    .env.local / gh secrets    → Secret store.     Owned. Container.
+//    .claude/skills, AGENTS.md  → Agent skill pack. Generated and owned.
+//    .github/workflows/*.yml    → Delivery runner.  Generated and owned.
+//
+//  The coding agent is NOT a container. EduOrchestrate writes instructions the
+//  agent reads, but it does not own, ship or run the agent, so Claude Code and
+//  friends sit outside as one external system.
+//
+//  GitHub Actions is likewise not an external system here. The workflow file is
+//  owned, so it is a container; Actions is only the deployment node it runs on.
+//  That is the container-versus-deployment split doing its job.
+//
+//  Validated on likec4 1.59.2: validate ✓ build ✓ 13 views, none empty.
+// ═══════════════════════════════════════════════════════════════════════════
+
+specification {
+
+  // palette ported from the product site and README badges
+  color brand-orange #e97926
+  color brand-cream  #f4eee8
+  color brand-node   #2ea043
+
+  // ── C4 abstractions, named after the model they implement ────────────────
+
+  element person {
+    notation 'Person'
+    style {
+      shape person
+      color brand-node
+    }
+  }
+
+  element softwareSystem {
+    notation 'Software system, in scope'
+    style {
+      color brand-orange
+      size xl
+    }
+  }
+
+  element externalSystem {
+    notation 'Software system, external'
+    style {
+      color muted
+    }
+  }
+
+  element container {
+    notation 'Container: application'
+    style {
+      color brand-orange
+      size lg
+    }
+  }
+
+  element containerStore {
+    notation 'Container: file-backed store'
+    style {
+      shape storage
+      color brand-orange
+      size lg
+    }
+  }
+
+  element containerDoc {
+    notation 'Container: generated instructions'
+    style {
+      shape document
+      color brand-orange
+      size lg
+    }
+  }
+
+  element component {
+    notation 'Component'
+    style {
+      shape component
+      color brand-orange
+      size sm
+    }
+  }
+
+  // ── relationship kinds, which generate the legend ────────────────────────
+
+  relationship uses {
+    notation 'Primary command path'
+    line solid
+    head normal
+  }
+
+  relationship internal {
+    notation 'In-process call'
+    line dashed
+    color gray
+  }
+
+  relationship persist {
+    notation 'Reads / writes local files'
+    line solid
+    head vee
+  }
+
+  relationship fetch {
+    notation 'Pulls from the public web'
+    line dotted
+    color indigo
+  }
+
+  relationship deliver {
+    notation 'Outbound e-mail'
+    line dotted
+    color amber
+    head diamond
+  }
+
+  tag setup
+  tag daily
+  tag review
+  tag agentrole
+  tag generated
+  tag secret
+
+  deploymentNode platform {
+    style {
+      color muted
+      opacity 15%
+    }
+  }
+
+  deploymentNode workstation {
+    style {
+      color brand-node
+      opacity 15%
+    }
+  }
+}
+// ═══════════════════════════════════════════════════════════════════════════
+//  EduOrchestrate — model, deployment and views
+//  The boundary rationale lives in spec.c4. Read that first.
+//
+//  Model and views share a file on purpose: LikeC4 only resolves short element
+//  names within a single file, and the dynamic flows below stay readable with
+//  `router -> planner` rather than `eduorchestrate.cli.router -> …`. The
+//  specification is split out because editing it reparses the whole project.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MODEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+model {
+
+  // ── people ───────────────────────────────────────────────────────────────
+
+  learner = person 'Learner' 'Picks a target job role and a first skill, then works one build artifact per day and logs the proof'
+
+  // ── the software system in scope ─────────────────────────────────────────
+
+  eduorchestrate = softwareSystem 'EduOrchestrate' 'Turns a target job role into an adaptive plan with a fixed 30-day minimum, sourced daily research, scheduled e-mail and skill progression cards. Runs locally inside whichever coding agent the learner already uses.' {
+    technology 'Node 18+ · zero runtime dependencies · MIT'
+    link https://eolearn.vercel.app 'Product site'
+    link https://github.com/haroontrailblazer/EduOrchestrate 'Source'
+
+    // ── the CLI: every command runs through here ──────────────────────────
+    cli = container 'Command-line interface' 'One dependency-free entry point. Interactive setup on a bare invocation, then one subcommand per step of the daily loop.' {
+      technology 'Node · bin/eduorchestrate.js · src/'
+      icon tech:nodejs
+
+      // components mirror src/ one-to-one, so a reader can find the code
+      router = component 'Command router' 'src/cli.js — dispatches every subcommand and drives the interactive setup that captures profile, role, first skill, stage, plan length, send time, timezone and SMTP' {
+        #setup
+      }
+      planner = component 'Planner' 'src/planner.js — role blueprints and adaptive plan generation, 30-day minimum enforced' {
+        #setup
+        technology '4 tuned blueprints, closest match inferred for anything else'
+      }
+      adapters = component 'Adapter writer' 'src/adapters.js — writes the per-agent adapter files on setup' {
+        #setup #generated
+      }
+      workflowGen = component 'Workflow generator' 'src/workflow.js — emits the GitHub Actions runner' {
+        #setup #generated
+      }
+      research = component 'Research engine' 'src/research.js — dated, sourced trend digest per day: one official doc, one video, one sample repo' {
+        #daily
+      }
+      courses = component 'Course sources' 'src/courses.js — role-specific official catalogs, free-course discovery links and newsletter feeds' {
+        #setup
+      }
+      harness = component 'Execution harness' 'src/harness.js — tells the agent what to load first, when to research, and what not to paste into chat' {
+        #daily
+        technology 'token-conscious'
+      }
+      progress = component 'Progress log' 'src/progress.js — evidence logging, status, weekly summaries' {
+        #daily #review
+      }
+      cards = component 'Progression cards' 'src/progression-card.js — role and skill card plus the terminal card' {
+        #review
+      }
+      cardRenderer = component 'Card renderer' 'src/card-components.js — compact SVG component renderer' {
+        #review
+      }
+      mailer = component 'Mailer' 'src/email.js — SMTP send, --dry-run previews without sending' {
+        #daily
+      }
+      configResolver = component 'Config resolver' 'src/config.js — config and data-dir resolution, reads credentials from the environment' {
+        #setup
+      }
+    }
+
+    // ── what the agent actually reads ─────────────────────────────────────
+    skillPack = containerDoc 'Agent skill pack' 'The canonical universal skill plus one generated adapter per runtime. This is the contract between EduOrchestrate and whichever agent the learner runs.' {
+      #generated
+      technology 'Markdown · JSON manifests'
+
+      canonicalSkill = component 'Canonical skill' 'skills/eduorchestrate/ — the single source of truth, with assets and references'
+      adapterFiles = component 'Agent adapters' '.claude/skills/… · AGENTS.md · GEMINI.md · openclaw · antigravity · hermas · mcp/manifest.json' {
+        #generated
+      }
+
+      // the typed multi-agent workflow the README documents. One model executes
+      // all six, so they are components of the skill that declares them, not
+      // separately deployable containers.
+      roles = component 'Typed agent roles' 'Executed in sequence by a single model' {
+        #agentrole
+        goalMapper = component 'GoalMapper' 'Translates target role and stage into priority skills'
+        curriculumPlanner = component 'CurriculumPlanner' 'Creates milestones and the daily focus plan'
+        researcher = component 'Researcher' 'Gathers dated, sourced updates from official docs and release notes'
+        buildMentor = component 'BuildMentor' 'Turns topics into practical projects with deliverables'
+        focusCoach = component 'FocusCoach' 'Limits scope and prevents resource overload'
+        evaluator = component 'Evaluator' 'Reviews evidence and adjusts the next action'
+      }
+    }
+
+    // ── the unattended path ───────────────────────────────────────────────
+    runner = container 'Daily delivery workflow' '.github/workflows/eduorchestrate-daily.yml — runs send-today on schedule, advances the day from schedule.startDate and stops after the plan window instead of repeating forever' {
+      #generated #daily
+      technology 'GitHub Actions · cron'
+    }
+
+    // ── owned state, all of it file-backed and local ──────────────────────
+    state = containerStore 'Learning state' 'data/ — plans, research digests, learning sources, harness, progress log, weekly summaries, cards. Git-ignored by default.' {
+      #daily
+      technology 'JSON · Markdown · SVG on local disk'
+    }
+
+    settings = containerStore 'Project config' 'eduorchestrate.config.json — profile, target role, first skill, stage, plan length, send time, timezone, schedule.startDate. Committed, and holds no secrets.' {
+      technology 'JSON, committed'
+    }
+
+    secrets = containerStore 'Secret store' '.env.local for local runs, GitHub Actions secrets for scheduled runs. Never committed either way.' {
+      #secret
+      technology 'dotenv · Actions secrets'
+      style {
+        color amber
+      }
+    }
+  }
+
+  // ── external software systems ────────────────────────────────────────────
+
+  codingAgent = externalSystem 'AI coding agent' 'Whichever agent the learner already pays for. Honours /eduorchestrate, or treats "use EduOrchestrate" as the equivalent where slash commands cannot be registered.' {
+    technology 'Claude Code · Codex · Gemini · OpenClaw · Antigravity · Hermas · any MCP client'
+    style {
+      multiple true
+    }
+  }
+
+  learningSources = externalSystem 'Learning sources' 'Official documentation, video search and public sample repositories. Resolved live and dated at digest time.' {
+    style {
+      multiple true
+    }
+  }
+
+  courseSources = externalSystem 'Course and newsletter sources' 'Vendor course catalogs, free-course discovery pages and newsletter feeds, per role blueprint' {
+    style {
+      multiple true
+    }
+  }
+
+  emailSystem = externalSystem 'E-mail system' 'The learner brings their own mail provider. EduOrchestrate never relays through a service it operates.' {
+    technology 'SMTP'
+    icon bootstrap:envelope
+  }
+
+  packageRegistry = externalSystem 'Package registry' 'Distributes the published CLI. Nothing is installed globally.' {
+    technology 'npm · npx'
+  }
+
+  // ── people and external systems, to the system in scope ──────────────────
+
+  learner -[uses]-> router 'runs npx eduorchestrate from a terminal in their project'
+  learner -[uses]-> codingAgent 'types /eduorchestrate, or "use EduOrchestrate"'
+  learner -[fetch]-> packageRegistry 'npx resolves and caches the package on each run'
+  emailSystem -[deliver]-> learner 'delivers the day plan to the inbox'
+
+  codingAgent -[uses]-> canonicalSkill 'loads the skill and the harness before doing anything else'
+  codingAgent -[uses]-> router 'runs the CLI commands the harness prescribes'
+
+  // ── container to container ───────────────────────────────────────────────
+
+  runner -[uses]-> router 'node bin/eduorchestrate.js send-today, on schedule'
+  mailer -[deliver]-> emailSystem 'sends through the learner\'s own mail provider'
+  research -[fetch]-> learningSources 'resolves one doc, one video and one sample repo, each dated'
+  courses -[fetch]-> courseSources 'collects the catalogs and feeds for the target role'
+
+  // ── inside the CLI ───────────────────────────────────────────────────────
+
+  router -[internal]-> planner 'plan'
+  router -[internal]-> adapters 'setup'
+  router -[internal]-> workflowGen 'setup'
+  router -[internal]-> research 'research --day N'
+  router -[internal]-> courses 'courses'
+  router -[internal]-> harness 'harness'
+  router -[internal]-> progress 'log-progress · status · weekly-summary'
+  router -[internal]-> cards 'progress-card · terminal-card'
+  router -[internal]-> mailer 'send-today'
+  router -[internal]-> configResolver 'doctor · setup-secrets, and every command that needs config'
+  cards -[internal]-> cardRenderer 'renders the compact SVG components'
+  cards -[internal]-> progress 'reads momentum, streak and the next action'
+  mailer -[internal]-> configResolver 'resolves SMTP credentials from the environment'
+  progress -[internal]-> planner 'recommend-next, once the plan window completes'
+
+  // ── inside the skill pack: the typed agent pipeline ──────────────────────
+
+  canonicalSkill -[internal]-> roles 'declares the roles the model plays in order'
+  goalMapper -[internal]-> curriculumPlanner 'priority skills for the role and stage'
+  curriculumPlanner -[internal]-> researcher 'milestones and the daily focus'
+  researcher -[internal]-> buildMentor 'dated, sourced updates'
+  buildMentor -[internal]-> focusCoach 'a practical task with a deliverable'
+  focusCoach -[internal]-> evaluator 'scope trimmed to one artifact'
+  evaluator -[internal]-> curriculumPlanner 'next action, plan adjusted'
+
+  // roles are played by the agent, which shells out to the matching command
+  curriculumPlanner -[uses]-> planner 'agent runs plan'
+  researcher -[uses]-> research 'agent runs research --day N'
+  evaluator -[uses]-> progress 'agent runs log-progress and status'
+
+  // ── reads and writes ─────────────────────────────────────────────────────
+
+  planner -[persist]-> state 'writes the adaptive plan, 30-day minimum'
+  research -[persist]-> state 'writes the dated digest for the day'
+  courses -[persist]-> state 'writes learning-sources.json and .md'
+  harness -[persist]-> state 'writes eduorchestrate-harness.json and .md'
+  progress -[persist]-> state 'appends completed work and evidence, reads for status and weekly summaries'
+  cards -[persist]-> state 'writes the progress card and the terminal card SVG'
+  mailer -[persist]-> state 'reads the day plan to compose the message'
+  configResolver -[persist]-> settings 'reads and writes the committed profile and schedule'
+  configResolver -[persist]-> secrets 'reads SMTP credentials, never writes them to committed config'
+  configResolver -[persist]-> state 'resolves the data directory'
+  adapters -[persist]-> adapterFiles 'writes one adapter per runtime on setup'
+  adapters -[persist]-> canonicalSkill 'installs the canonical skill into the project'
+  workflowGen -[persist]-> runner 'writes the scheduled workflow'
+  runner -[persist]-> secrets 'pulls SMTP credentials from Actions secrets into the job environment'
+  runner -[persist]-> settings 'reads schedule.startDate to work out which day is due'
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DEPLOYMENT — where each container actually runs
+//  The point of this view: everything except the scheduled runner lives on the
+//  learner machine. That is the whole local-first claim, made checkable.
+// ═══════════════════════════════════════════════════════════════════════════
+
+deployment {
+
+  learnerMachine = workstation 'Learner workstation' {
+    technology 'Node 18+, one project directory, nothing installed globally'
+
+    agentNode = instanceOf codingAgent
+    cliLocal = instanceOf eduorchestrate.cli
+    skillNode = instanceOf eduorchestrate.skillPack
+    stateNode = instanceOf eduorchestrate.state
+    settingsNode = instanceOf eduorchestrate.settings
+    envNode = instanceOf eduorchestrate.secrets {
+      title '.env.local'
+    }
+  }
+
+  githubActions = platform 'GitHub Actions' {
+    technology 'The learner\'s own repository, cron at the configured send time'
+
+    runnerNode = instanceOf eduorchestrate.runner
+    cliScheduled = instanceOf eduorchestrate.cli {
+      title 'CLI on the runner'
+    }
+    actionsSecrets = instanceOf eduorchestrate.secrets {
+      title 'Actions secrets'
+    }
+  }
+
+  registryNode = platform 'npm' {
+    packageNode = instanceOf packageRegistry
+  }
+
+  publicWeb = platform 'Public web' {
+    docsNode = instanceOf learningSources
+    catalogNode = instanceOf courseSources
+  }
+
+  mailProvider = platform 'Mail provider' {
+    smtpNode = instanceOf emailSystem
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  VIEWS — one per C4 level
+// ═══════════════════════════════════════════════════════════════════════════
+
+views {
+
+  // ── Level 1 ──────────────────────────────────────────────────────────────
+  // With the boundary drawn correctly this is plain `include *`: the learner,
+  // the system as one box, and the five systems it does not own.
+
+  view index {
+    title 'Level 1 — System Context'
+    description '''
+      EduOrchestrate as a single box. A learner drives it directly or through
+      whichever coding agent they already use; it pulls sourced material from
+      the public web and pushes one e-mail a day through the learner's own mail
+      provider. No dashboard, no account, nothing hosted by the project.
+    '''
+
+    include *
+
+    // the learner both runs the CLI and reaches for npx, which merges into one
+    // edge, so name it rather than letting it render as "[...]"
+    include learner -> eduorchestrate with {
+      title 'sets a target role, then works one build artifact a day'
+    }
+    include codingAgent -> eduorchestrate with {
+      title 'loads the skill pack, then runs the commands it prescribes'
+    }
+
+    style * {
+      color muted
+    }
+    style eduorchestrate {
+      color brand-orange
+    }
+    style learner {
+      color brand-node
+    }
+
+    autoLayout TopBottom 140 120
+  }
+
+  // ── Level 2 ──────────────────────────────────────────────────────────────
+
+  view containers of eduorchestrate {
+    title 'Level 2 — Containers'
+    description '''
+      Six containers, and every one of them is a file on the learner's machine
+      or in their repository. The three stores are containers rather than
+      external systems because the learner owns the contents outright: data/ is
+      git-ignored, the config is committed without secrets, and the secret store
+      is never committed at all.
+    '''
+
+    include *
+
+    include eduorchestrate.cli -> eduorchestrate.state with {
+      title 'writes plans, digests, source packs, harness, progress and cards'
+    }
+    include eduorchestrate.cli -> eduorchestrate.skillPack with {
+      title 'installs the canonical skill and one adapter per runtime'
+    }
+    include eduorchestrate.skillPack -> eduorchestrate.cli with {
+      title 'three of the six roles shell out to plan, research and log-progress'
+    }
+
+    autoLayout TopBottom 130 110
+  }
+
+  // ── Level 3 ──────────────────────────────────────────────────────────────
+
+  view components of eduorchestrate.cli {
+    title 'Level 3 — CLI components'
+    description 'One component per file in src/, so a reader can go from the diagram to the code without guessing.'
+
+    include *
+    include
+      eduorchestrate.state,
+      eduorchestrate.settings,
+      eduorchestrate.secrets,
+      eduorchestrate.skillPack,
+      eduorchestrate.runner,
+      learner,
+      codingAgent,
+      learningSources,
+      courseSources,
+      emailSystem
+
+    include eduorchestrate.cli.adapters -> eduorchestrate.skillPack with {
+      title 'installs the canonical skill and all seven adapters'
+    }
+
+    autoLayout LeftRight 120 90
+  }
+
+  view agentRoles of eduorchestrate.skillPack {
+    title 'Level 3 — Agent skill pack'
+    description '''
+      The typed multi-agent workflow, executed by a single model. Three of the
+      six roles shell out to a CLI command; the rest are reasoning steps the
+      skill file prescribes.
+    '''
+
+    include *
+    include eduorchestrate.skillPack.roles.*
+    include codingAgent, eduorchestrate.cli.planner, eduorchestrate.cli.research, eduorchestrate.cli.progress
+
+    autoLayout LeftRight 110 80
+  }
+
+  view dailyPath {
+    title 'Level 3 — The daily loop only'
+    description 'Filtered component view: everything one day touches, and nothing from setup or review.'
+
+    include eduorchestrate.cli.* where tag is #daily
+    include
+      learner,
+      codingAgent,
+      eduorchestrate.cli.router,
+      eduorchestrate.cli.configResolver,
+      eduorchestrate.state,
+      eduorchestrate.secrets,
+      eduorchestrate.runner,
+      learningSources,
+      emailSystem
+
+    autoLayout LeftRight 110 80
+  }
+}
+
+// ── Dynamic views, one per flow ────────────────────────────────────────────
+
+views {
+
+  dynamic view setupFlow {
+    title 'Flows / 1 · Setup and first plan'
+    description '''
+      One bare invocation does all of it: capture the profile, install the
+      adapters for every supported runtime, emit the scheduled workflow, and
+      generate the first plan. The 30-day floor is applied here, silently, even
+      when a shorter plan was requested.
+    '''
+    variant sequence
+
+    learner -> packageRegistry 'npx eduorchestrate'
+    learner <- packageRegistry 'resolves and caches the CLI'
+    learner -> router 'interactive setup'
+    router -> learner 'asks for name, e-mail, target role, current topic, first skill, stage, plan length, send time, timezone and SMTP'
+
+    router -> configResolver 'persists the answers'
+    configResolver -> settings 'writes eduorchestrate.config.json, no secrets in it'
+    configResolver -> secrets 'writes .env.local'
+
+    parallel {
+      router -> adapters 'install the agent adapters'
+      router -> workflowGen 'emit the scheduled runner'
+    }
+
+    adapters -> canonicalSkill 'installs skills/eduorchestrate/'
+    adapters -> adapterFiles 'writes seven adapters: Claude Code, AGENTS.md, Gemini, OpenClaw, Antigravity, Hermas, MCP'
+    workflowGen -> runner 'writes .github/workflows/eduorchestrate-daily.yml'
+
+    router -> planner 'generate the first plan'
+
+    alt {
+      when 'requested length is 30 days or more' {
+        planner -> planner 'expands the role blueprint across the requested window'
+      }
+      else 'fewer than 30 requested' {
+        planner -> planner 'generates 30 anyway, a month is the floor for demonstrable momentum'
+      }
+    }
+
+    planner -> state 'writes the plan: one topic, one build artifact and one review per day'
+    router -> courses 'collects the source pack for the role'
+    courses -> state 'writes learning-sources'
+    router -> harness 'writes the token-conscious harness'
+    harness -> state 'writes eduorchestrate-harness'
+    learner <- router 'setup complete, day 1 ready'
+  }
+
+  dynamic view agentLoopFlow {
+    title 'Flows / 2 · Typed agent pipeline'
+    description '''
+      The README's multi-agent flowchart, made honest: six typed roles executed
+      by one model, with the Evaluator feeding the next action back into the
+      CurriculumPlanner rather than terminating.
+    '''
+    variant sequence
+
+    learner -> codingAgent '/eduorchestrate'
+    codingAgent -> canonicalSkill 'loads the skill'
+
+    goalMapper -> curriculumPlanner 'target role and stage, resolved to priority skills'
+
+    loop 'once per plan day, until the window closes' {
+      curriculumPlanner -> planner 'reads or adjusts the milestones and the daily focus'
+      curriculumPlanner -> researcher 'the topic for today'
+      researcher -> research 'gathers dated, sourced updates'
+      researcher -> buildMentor 'references worth building against'
+      buildMentor -> focusCoach 'a practical task with a deliverable'
+      focusCoach -> evaluator 'scope cut to one artifact, resource overload prevented'
+      evaluator -> progress 'reads the logged evidence'
+      evaluator -> curriculumPlanner 'next action'
+    }
+
+    learner <- codingAgent 'one build action with visible proof'
+  }
+
+  dynamic view dailyLoopFlow {
+    title 'Flows / 3 · The daily loop'
+    description '''
+      What actually happens on a working day. The harness is loaded first on
+      purpose: it tells the agent what to read, when to research and what not to
+      paste into the chat, which is what keeps the token cost flat.
+    '''
+    variant sequence
+
+    learner -> codingAgent '/eduorchestrate, or "use EduOrchestrate" on a runtime without slash commands'
+    codingAgent -> canonicalSkill 'reads the skill and the resume rule'
+
+    codingAgent -> harness 'harness'
+    harness -> state 'reads the plan and the log'
+    codingAgent <- harness 'what to load first, and what to leave out of chat'
+
+    codingAgent -> progress 'status'
+    progress -> state 'reads the plan, the log and schedule.startDate'
+    codingAgent <- progress 'role, first skill, current day and the next action'
+
+    codingAgent -> research 'research --day N'
+    codingAgent <- research 'a dated digest: one doc, one video, one sample repo'
+
+    codingAgent -> learner 'the build task for today and its proof target'
+    learner -> learner 'builds the artifact'
+
+    opt 'SMTP already approved' {
+      codingAgent -> mailer 'send-today, preview first'
+    }
+
+    learner -> progress 'log-progress --day N --completed … --evidence …'
+    progress -> state 'appends the evidence: repo link, notes, screenshots'
+    learner <- codingAgent 'next action kept visible for tomorrow'
+  }
+
+  dynamic view researchFlow {
+    title 'Flows / 4 · Trend-aware research'
+    description '''
+      The interesting decision in the product: a trend only reshapes the roadmap
+      when it improves employability. Everything else lands in the digest and
+      leaves the plan alone, which is what stops the plan drifting every time
+      something new ships.
+    '''
+    variant sequence
+
+    codingAgent -> research 'research --day N'
+    research -> configResolver 'resolves the target role and the current skill'
+    configResolver -> settings 'reads the profile'
+
+    parallel {
+      research -> learningSources 'official documentation for the current topic'
+      research -> learningSources 'video search'
+      research -> learningSources 'public sample repositories'
+    }
+
+    research <- learningSources 'candidate references, each with a resolve date'
+    research -> research 'dates and de-duplicates, keeps one doc, one video, one repo'
+
+    alt {
+      when 'a trend materially improves employability for the target role' {
+        research -> planner 'proposes a roadmap reshape'
+        planner -> state 'adjusts the remaining plan days'
+      }
+      else 'interesting but not employability-moving' {
+        research -> research 'digest only, plan untouched'
+      }
+    }
+
+    research -> state 'writes the dated digest for the day'
+    codingAgent <- research 'sourced references and the task for the day'
+  }
+
+  dynamic view sendManualFlow {
+    title 'Flows / 5 · Manual e-mail, preview then send'
+    description '''
+      --dry-run is always safe. The adapters carry the same rule on every
+      runtime: preview first, and only send once SMTP setup has been approved.
+    '''
+    variant sequence
+
+    learner -> router 'send-today --dry-run'
+    router -> mailer 'compose only'
+    mailer -> state 'reads the plan for the resolved day'
+    mailer -> configResolver 'resolves the send configuration'
+    configResolver -> settings 'reads the profile and the schedule'
+    learner <- mailer 'renders the message to the terminal, nothing sent'
+
+    opt 'preview looks right' {
+      learner -> router 'send-today'
+      router -> mailer 'compose and send'
+      mailer -> configResolver 'resolves the credentials'
+      configResolver -> secrets 'reads host, port, user and password from .env.local'
+
+      try {
+        mailer -> emailSystem 'submits through the learner\'s own mail provider'
+        emailSystem -> learner 'the day plan lands in the inbox'
+      } catch 'credentials rejected or the host is unreachable' {
+        learner <- mailer 'the send fails loudly, the plan and the log are untouched'
+      }
+    }
+  }
+
+  dynamic view sendScheduledFlow {
+    title 'Flows / 6 · Autonomous delivery'
+    description '''
+      No browser, no agent session left open. The workflow computes the current
+      day from schedule.startDate rather than incrementing a counter, which is
+      why a missed run does not desynchronise the plan and why the job stops
+      instead of resending day 45 forever.
+    '''
+    variant sequence
+
+    learner -> router 'setup-secrets'
+    learner <- router 'prints the exact gh secret set commands'
+    learner -> secrets 'stores the SMTP credentials as Actions secrets'
+
+    loop 'cron, at the configured send time' {
+      runner -> settings 'reads schedule.startDate and the plan length'
+
+      alt {
+        when 'the computed day is inside the plan window' {
+          runner -> secrets 'pulls the SMTP credentials into the job environment'
+          runner -> router 'node bin/eduorchestrate.js send-today'
+          router -> mailer 'compose and send for the computed day'
+          mailer -> state 'reads the day plan'
+          mailer -> emailSystem 'submits the message'
+          emailSystem -> learner 'the day plan lands in the inbox'
+        }
+        else 'the plan window has completed' {
+          runner -> runner 'skips, rather than repeating the last day forever'
+        }
+      }
+    }
+  }
+
+  dynamic view proofFlow {
+    title 'Flows / 7 · Progress, cards and what comes next'
+    description '''
+      The output of the whole system is evidence: a log entry with a link, a
+      weekly summary, and a card that renders momentum without a dashboard.
+    '''
+    variant sequence
+
+    learner -> router 'log-progress --day N --completed … --evidence …'
+    router -> progress 'records the day'
+    progress -> state 'appends completed work and the evidence link'
+
+    learner -> router 'weekly-summary --week N'
+    router -> progress 'summarises the week'
+    progress -> state 'reads the log for the week'
+    learner <- progress 'what shipped, what slipped'
+
+    learner -> router 'progress-card and terminal-card'
+    router -> cards 'render'
+    cards -> progress 'reads momentum, streak and the next action'
+    cards -> cardRenderer 'lays out the compact SVG components'
+    cards -> state 'writes the card as Markdown, JSON and SVG'
+    learner <- cards 'role, first skill, active day, latest evidence and momentum'
+
+    opt 'the plan window has completed' {
+      learner -> router 'recommend-next'
+      router -> progress 'reviews the whole window'
+      progress -> planner 'asks for the next skill to target'
+      learner <- planner 'the skill to start the next plan on'
+    }
+  }
+}
+
+// ── Deployment ─────────────────────────────────────────────────────────────
+
+views {
+
+  deployment view production {
+    title 'Deployment / Where it runs'
+    description '''
+      Container says what a thing is; deployment node says where it runs. Almost
+      the whole system is on the learner's workstation, which is the local-first
+      claim made checkable rather than asserted. The one exception is the
+      scheduled path: the same CLI runs a second time on GitHub Actions against
+      a second copy of the secret store, so that daily delivery survives the
+      laptop being shut.
+    '''
+    includeAncestors: true
+
+    include *
+    include
+      learnerMachine.**,
+      githubActions.**,
+      registryNode.**,
+      publicWeb.**,
+      mailProvider.**
+
+    autoLayout LeftRight 130 100
+  }
+}
